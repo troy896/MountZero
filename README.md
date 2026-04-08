@@ -169,32 +169,6 @@ CONFIG_MOUNTZERO depends on KSU_SUSFS
 - LSPosed hiding (dex2oat paths)
 - ext4 loop/jbd2 hiding
 
-## Files Structure
-
-```
-MountZero_Project/
-├── README.md                          # This file
-├── kernel/
-│   ├── patches/
-│   │   └── 003_mountzero_vfs.patch    # MountZero VFS only
-│   └── source_files/
-│       ├── fs/
-│       │   ├── mountzero.c
-│       │   ├── mountzero_vfs.c
-│       │   └── mountzero_cli.c
-│       └── include/linux/
-│           ├── mountzero.h
-│           ├── mountzero_def.h
-│           └── mountzero_vfs.h
-├── module/
-│   └── MountZero-Manager-v2.0.0-FLASHABLE.zip
-├── scripts/
-│   └── patch_kernel.sh                # One-command kernel patcher
-└── docs/
-    ├── KERNEL_INTEGRATION.md          # Detailed kernel patching guide
-    └── MODULE_GUIDE.md                # Module usage guide
-```
-
 ## License
 
 GPL v2.0
