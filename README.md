@@ -1,5 +1,14 @@
 # MountZero VFS — Complete Kernel Integration
 
+<p align="center">
+  <strong>🔥 VFS-level path redirection + SUSFS root evasion for KernelSU/APatch</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/mafiadan6/MountZero/releases/latest/download/MountZero-Manager-v2.0.0-FLASHABLE.zip"><img src="https://img.shields.io/badge/Download%20Module-v2.0.0-blue?style=for-the-badge&logo=github" alt="Download Module"></a>
+  <a href="https://t.me/mastermindszs"><img src="https://img.shields.io/badge/Telegram-@mastermindszs-2CA5E0?style=for-the-badge&logo=telegram" alt="Telegram"></a>
+</p>
+
 ## Overview
 
 MountZero VFS is a **built-in kernel module** that provides VFS-level path redirection for KernelSU/APatch modules. It works alongside SUSFS (already in your kernel) to provide:
@@ -11,6 +20,32 @@ MountZero VFS is a **built-in kernel module** that provides VFS-level path redir
 - **Hot-Plug Detection** — watches for new modules without reboot
 - **Bootloop Guard** — automatically skips mount pipeline after 3 failed boots
 - **WebUI Management** — 6-tab KernelSU WebUI for full control
+
+## 📦 Module Download
+
+> **⚠️ Required:** You MUST install the MountZero Manager module for the VFS driver to work properly.  
+> The kernel patch only adds the driver — the module provides the management layer, WebUI, and mounting scripts.
+
+<div align="center">
+  <h3>
+    <a href="https://github.com/mafiadan6/MountZero/releases/latest/download/MountZero-Manager-v2.0.0-FLASHABLE.zip">
+      📥 Download MountZero Manager v2.0.0
+    </a>
+  </h3>
+  <p><em>Flash via KernelSU → Modules → Install from storage</em></p>
+</div>
+
+## 📢 Community
+
+Join the Telegram channel for updates, support, and discussion:
+
+<div align="center">
+  <h3>
+    <a href="https://t.me/mastermindszs">
+      💬 @mastermindszs on Telegram
+    </a>
+  </h3>
+</div>
 
 ## Prerequisites
 
@@ -32,8 +67,17 @@ cd MountZero_Project
 make -j$(nproc)
 
 # 4. Flash kernel and MountZero_Manager module
+#    📥 Download: https://github.com/mafiadan6/MountZero/releases
 # 5. Reboot
 ```
+
+> **⚠️ Required:** The MountZero Manager module MUST be installed via KernelSU for the VFS driver to work. The kernel patch adds the driver, but the module provides the WebUI, mounting scripts, and management layer. Without the module, the VFS driver has no way to manage rules or scan modules.
+
+## 📢 Stay Updated
+
+Join the Telegram channel for releases, support, and discussion:
+
+**[💬 @mastermindszs on Telegram](https://t.me/mastermindszs)**
 
 ## Architecture
 
