@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/mafiadan6/MountZero/releases/latest/download/MountZero-Manager-v2.0.0-FLASHABLE.zip"><img src="https://img.shields.io/badge/Download%20Module-v2.0.0-blue?style=for-the-badge&logo=github" alt="Download Module"></a>
+  <a href="https://github.com/mafiadan6/MountZero/releases"><img src="https://img.shields.io/badge/Download%20Module-v2.0.0-blue?style=for-the-badge&logo=github" alt="Download Module"></a>
   <a href="https://t.me/mastermindszs"><img src="https://img.shields.io/badge/Telegram-@mastermindszs-2CA5E0?style=for-the-badge&logo=telegram" alt="Telegram"></a>
 </p>
 
@@ -28,7 +28,7 @@ MountZero VFS is a **built-in kernel module** that provides VFS-level path redir
 
 <div align="center">
   <h3>
-    <a href="https://github.com/mafiadan6/MountZero/releases/latest/download/MountZero-Manager-v2.0.0-FLASHABLE.zip">
+    <a href="https://github.com/mafiadan6/MountZero/releases">
       📥 Download MountZero Manager v2.0.0
     </a>
   </h3>
