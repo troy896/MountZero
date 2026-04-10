@@ -1,7 +1,7 @@
 # MountZero VFS
 
 <p align="center">
-  <strong>🔥 VFS-level path redirection + SUSFS root evasion for KernelSU/APatch</strong>
+  <strong>🔥 VFS-level path redirection + SUSFS root evasion for KernelSU/ReSukiSU</strong>
 </p>
 
 <p align="center">
@@ -14,7 +14,7 @@
 
 ## 📖 Overview
 
-MountZero VFS is a **built-in kernel module** that provides VFS-level path redirection for KernelSU/APatch modules. It works alongside **SUSFS v2.1.0** to deliver complete root hiding and module management without traditional overlay mounts.
+MountZero VFS is a **built-in kernel module** that provides VFS-level path redirection for KernelSU/ReSukiSU modules. It works alongside **SUSFS v2.1.0** to deliver complete root hiding and module management without traditional overlay mounts.
 
 ### How It Works
 
@@ -56,20 +56,76 @@ Traditional root solutions use overlayfs to mount module files over the system p
 
 | Project | Target Kernel | Description |
 |---------|--------------|-------------|
-| **MountZero** (this repo) | **4.14 kernels** | VFS path redirection + SUSFS bridge for older non-GKI kernels (e.g., Samsung MT6768) |
+| **MountZero** (this repo) | **4.14 kernels** (also works on **5.x/6.x** with minor modifications) | VFS path redirection + SUSFS bridge for KernelSU, ReSukiSU, and other built-in root solutions. **Tested with ReSukiSU.** |
 | **ZeroMount** | **5.x/6.x GKI kernels** | Full SUSFS + VFS solution via [Super-Builders](https://github.com/Enginex0/Super-Builders) 💬 [Join Super Powers](https://t.me/superpowers9) |
 
-> **If your kernel is 5.10, 5.15, 6.1, or 6.6 GKI:** Use [ZeroMount via Super-Builders](https://github.com/Enginex0/Super-Builders) instead. That project includes both SUSFS 2.1.0 and the VFS driver as integrated patches.
+> **⚠️ Important:** This repository does NOT include SUSFS patches. Your 4.14 kernel must already have SUSFS v2.1.0 (`CONFIG_KSU_SUSFS=y`) and **KernelSU or ReSukiSU** integrated. APatch is NOT supported.
+
+> **Want to use MountZero on 5.x/6.x kernels?** You absolutely can! The source files (`fs/mountzero.c`, `fs/mountzero_vfs.c`, headers) are included in this repository under `kernel/source_files/`. Simply copy them to your kernel tree, update `fs/Makefile` and `fs/Kconfig`, and hook into `fs/namei.c`. The `patch_kernel.sh` script auto-detects the correct hook location for most kernel versions. See the [Kernel Integration Guide](docs/KERNEL_INTEGRATION.md) for detailed instructions.
 > 
-> **If your kernel is 4.14 (or older non-GKI):** This is the right project for you.
+> **If you prefer a pre-patched solution for GKI kernels:** Use [ZeroMount via Super-Builders](https://github.com/Enginex0/Super-Builders) instead.
+
+### How to Integrate MountZero into 5.x/6.x Kernels
+
+If you have a 5.x or 6.x kernel that already has SUSFS 2.1.0 and KernelSU integrated, you can add MountZero in just 4 steps:
+
+**1. Copy source files to your kernel tree:**
+```bash
+cd /path/to/your/kernel/source
+cp /path/to/MountZero_Project/kernel/source_files/fs/mountzero.c fs/
+cp /path/to/MountZero_Project/kernel/source_files/fs/mountzero_vfs.c fs/
+cp /path/to/MountZero_Project/kernel/source_files/include/linux/mountzero*.h include/linux/
+```
+
+**2. Update `fs/Makefile`:**
+```makefile
+obj-$(CONFIG_MOUNTZERO)		+= mountzero.o mountzero_vfs.o
+```
+
+**3. Update `fs/Kconfig`:**
+```kconfig
+config MOUNTZERO
+    bool "MountZero VFS Path Redirection System"
+    depends on KSU_SUSFS
+    default y
+    help
+      VFS-level path redirection for KernelSU modules.
+```
+
+**4. Hook into `fs/namei.c`:**
+
+Find the `getname_flags()` function (or equivalent path resolution function in your kernel version) and add this hook before the function returns:
+
+```c
+#ifdef CONFIG_MOUNTZERO
+    /* MountZero VFS path redirection */
+    result = mountzero_vfs_getname_hook(result);
+#endif
+```
+
+Also add the include near the top of `fs/namei.c`:
+```c
+#ifdef CONFIG_MOUNTZERO
+#include <linux/mountzero_vfs.h>
+#endif
+```
+
+**5. Enable in defconfig:**
+```text
+CONFIG_MOUNTZERO=y
+```
+
+**6. Build and flash.** The `patch_kernel.sh` script in this repo automates steps 1-4 for most kernels.
+
+> **Note:** The only kernel-version-specific change is the `fs/namei.c` hook location. The `getname_flags()` function structure is consistent across 4.14–6.x kernels, but if your kernel has a different path resolution structure, you may need to place the hook in `filename_lookup()` or `path_lookupat()` instead.
 
 ### Step 0: Apply SUSFS Patches (4.14 Kernels Only)
 
-> **⚠️ Important:** This repository does NOT include SUSFS patches. Your 4.14 kernel must already have SUSFS v2.1.0 (`CONFIG_KSU_SUSFS=y`) and KernelSU/APatch integrated.
+> **⚠️ Important:** This repository does NOT include SUSFS patches. Your 4.14 kernel must already have SUSFS v2.1.0 (`CONFIG_KSU_SUSFS=y`) and **KernelSU or ReSukiSU** integrated.
 
 If your 4.14 kernel doesn't have SUSFS, you'll need to port the SUSFS patches manually from the [Super-Builders repository](https://github.com/Enginex0/Super-Builders). The GKI patches in that repo won't apply directly to 4.14 kernels due to code differences.
 
-**Also required:** KernelSU or APatch must be integrated first. See [KernelSU docs](https://kernelsu.org) or [APatch docs](https://apatch.org).
+**Also required:** KernelSU or ReSukiSU must be integrated first. See [KernelSU docs](https://kernelsu.org).
 
 ### Step 1: Apply MountZero VFS Patches
 
@@ -339,7 +395,7 @@ This project was built to bring VFS-level path redirection to 4.14 kernels. Mass
 - **[Super-Builders](https://github.com/Enginex0/Super-Builders)** – For the incredible work on SUSFS v2.1.0, ZeroMount, and the GKI patch ecosystem. Their work is the absolute foundation of modern Android root hiding. Huge thanks to the team for pushing the boundaries of what's possible.  
   💬 **Join their community:** [Super Powers Telegram](https://t.me/superpowers9)
 - **[KernelSU](https://kernelsu.org)** – For the root framework and WebUI integration
-- **[APatch](https://apatch.org)** – For alternative root implementation
+- **[ReSukiSU](https://github.com/ReSukiSU)** – Tested root framework with SUSFS integration
 
 ---
 
