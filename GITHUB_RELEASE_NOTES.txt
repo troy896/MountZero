@@ -1,0 +1,51 @@
+===========================================
+  MountZero VFS v2.0.0 — GitHub Release
+===========================================
+
+[Release Title]
+---------------
+MountZero VFS v2.0.0 — Initial Release
+
+
+[Release Notes]
+---------------
+## 🔥 MountZero VFS v2.0.0
+
+First public release of MountZero VFS — a full VFS-level path redirection and root evasion system for KernelSU/APatch.
+
+### 📦 What's Included
+
+- **Kernel VFS Driver** — `mountzero.c` (1350 lines), `mountzero_vfs.c` (300 lines)
+- **SUSFS Integration** — All 9 SUSFS features (path hiding, mount hiding, kstat spoofing, uname spoofing, cmdline spoofing, maps hiding, logging, symbol hiding, open redirect)
+- **BRENE Hiding Engine** — Root evasion engine with path/map hiding, 20+ property spoofing, bootconfig/cmdline spoofing, LSPosed hiding, ext4 loop hiding, AVC log spoofing
+- **WebUI Management** — 6-tab KSU WebUI (Status, Modules, Rules, Config, Guard, Tools)
+- **Hot-Plug Detection** — Automatic module installation without reboot
+- **Bootloop Guard** — Automatic recovery after 3 failed boots
+- **Overlay Mount Fallback** — When VFS redirection isn't available
+
+### 📋 Prerequisites
+
+- KernelSU or APatch already integrated
+- SUSFS patches applied to kernel
+- Kernel 4.14 - 6.6, arm64
+
+### 🚀 Quick Start
+
+1. Run `./scripts/patch_kernel.sh /path/to/kernel/source`
+2. Add `CONFIG_MOUNTZERO=y` to defconfig
+3. Build and flash kernel
+4. Flash the MountZero Manager module via KernelSU
+5. Reboot
+
+### 📞 Community
+
+Join Telegram: [@mastermindszs](https://t.me/mastermindszs)
+
+### 📝 License
+
+GPL-2.0
+
+
+[Release Asset]
+---------------
+MountZero-Manager-v2.0.0-FLASHABLE.zip

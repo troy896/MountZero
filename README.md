@@ -16,52 +16,28 @@
 
 MountZero VFS is a **built-in kernel module** that provides VFS-level path redirection for KernelSU/APatch modules. It works alongside **SUSFS v2.1.0** to deliver complete root hiding and module management without traditional overlay mounts.
 
-### What Makes MountZero Different
+### How It Works
 
 Traditional root solutions use overlayfs to mount module files over the system partition. MountZero intercepts file lookups at the VFS layer and redirects them transparently — **zero mounts, zero /proc/mounts entries, zero detection surface**.
 
-## ✨ Features
+### Key Features
 
-### 🔮 Enchanted SUSFS VFS Engine
-- **VFS Path Redirection** — transparent file redirection at the VFS layer, no overlay mounts needed
+- **VFS Path Redirection** — transparent file redirection at the VFS layer using hash table + bloom filter
 - **Auto Module Scanning** — recursively scans `/data/adb/modules/` and `/data/local/` at boot
-- **Hot-Plug Detection** — watches for new modules without reboot (5s polling)
-- **Bloom Filter Lookups** — O(1) rule resolution with 8192-bit bloom filter
+- **Hot-Plug Detection** — watches for new modules every 5 seconds without reboot
+- **SUSFS Integration** — full bridge to all 9 SUSFS features (path hiding, mount hiding, kstat spoofing, uname spoofing, cmdline spoofing, maps hiding, logging, symbol hiding, open redirect)
+- **BRENE Root Evasion** — path hiding, maps hiding, properties spoofing, cmdline/bootconfig spoofing
 - **Bootloop Guard** — automatically skips mount pipeline after 3 failed boots
+- **BBR Congestion Control** — toggle BBR at boot with persistence
+- **WebUI Management** — 6-tab KernelSU WebUI (Status, Modules, Rules, Config, Guard, Tools)
+- **ADB Root** — toggle ADB root access with persistence
 
-### 🛡️ SUSFS Integration (All 9 Features)
-| Feature | Config | Description |
-|---------|--------|-------------|
-| Path Hiding | `CONFIG_KSU_SUSFS_SUS_PATH` | Hide files/dirs from `readdir` and path lookups |
-| Mount Hiding | `CONFIG_KSU_SUSFS_SUS_MOUNT` | Hide mounts from non-su processes |
-| Kstat Spoofing | `CONFIG_KSU_SUSFS_SUS_KSTAT` | Spoof file metadata (inode, dev, size, timestamps) |
-| Uname Spoofing | `CONFIG_KSU_SUSFS_SPOOF_UNAME` | Spoof `uname -r` / `uname -v` output |
-| Kernel Logging | `CONFIG_KSU_SUSFS_ENABLE_LOG` | Enable/disable SUSFS kernel logging |
-| Symbol Hiding | `CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS` | Hide kernel symbols from `/proc/kallsyms` |
-| Cmdline Spoofing | `CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG` | Spoof `/proc/cmdline` or bootconfig |
-| Open Redirect | `CONFIG_KSU_SUSFS_OPEN_REDIRECT` | Redirect file opens based on UID scheme |
-| Maps Hiding | `CONFIG_KSU_SUSFS_SUS_MAP` | Hide library mappings from `/proc/PID/maps` |
-
-### 👻 BRENE Root Evasion Engine
-- **Path Hiding** — KSU, Magisk, root detection paths hidden from detection
-- **Maps Hiding** — Zygisk, LSPosed injection libraries hidden from `/proc/PID/maps`
-- **Properties Spoofing** — 20+ Android system properties spoofed (`ro.secure`, `ro.debuggable`, `ro.boot.flash.locked`, etc.)
-- **Cmdline/Bootconfig Spoofing** — Clean boot state shown to detectors
-- **LSPosed Hiding** — dex2oat paths hidden from detection
-- **ext4 Loop/JBD2 Hiding** — Module loop devices hidden from `/proc/fs/`
-- **AVC Log Spoofing** — SELinux denial logs suppressed
-
-### 🌐 WebUI Management
-- **Status Tab** — System info, SUSFS version, VFS rule counts, capability detection
-- **Modules Tab** — List all installed modules with active/disabled status, search/filter
-- **VFS Rules Tab** — View, add, delete redirect rules
-- **Config Tab** — Mount engine selection, SUSFS bridge, ADB root toggle
-- **Guard Tab** — Bootloop guard status, threshold control, recovery
-- **Tools Tab** — Kernel capability detection, diagnostic dump, module operations
+---
 
 ## 📦 Module Download
 
-> **⚠️ Required:** You MUST install the MountZero Manager module for the VFS driver to work. The kernel patch adds the driver — the module provides the WebUI, mounting scripts, and management layer.
+> **⚠️ Required:** You MUST install the MountZero Manager module for the VFS driver to work.  
+> The kernel patch adds the driver — the module provides the WebUI, mounting scripts, and management layer.
 
 <div align="center">
   <h3>
@@ -72,40 +48,42 @@ Traditional root solutions use overlayfs to mount module files over the system p
   <p><em>Flash via KernelSU → Modules → Install from storage</em></p>
 </div>
 
+---
+
 ## 🚀 Quick Start
 
-### Prerequisites
-- KernelSU or APatch already integrated
-- Kernel 4.14 or 5.15 (arm64)
-- SUSFS v2.1.0 patches (included if your kernel doesn't have them)
+### ⚠️ Important: MountZero vs ZeroMount
 
-### Step 1: Apply SUSFS v2.1.0 Patches
+| Project | Target Kernel | Description |
+|---------|--------------|-------------|
+| **MountZero** (this repo) | **4.14 kernels** | VFS path redirection + SUSFS bridge for older non-GKI kernels (e.g., Samsung MT6768) |
+| **ZeroMount** | **5.x/6.x GKI kernels** | Full SUSFS + VFS solution via [Super-Builders](https://github.com/Enginex0/Super-Builders) 💬 [Join Super Powers](https://t.me/superpowers9) |
+
+> **If your kernel is 5.10, 5.15, 6.1, or 6.6 GKI:** Use [ZeroMount via Super-Builders](https://github.com/Enginex0/Super-Builders) instead. That project includes both SUSFS 2.1.0 and the VFS driver as integrated patches.
+> 
+> **If your kernel is 4.14 (or older non-GKI):** This is the right project for you.
+
+### Step 0: Apply SUSFS Patches (4.14 Kernels Only)
+
+> **⚠️ Important:** This repository does NOT include SUSFS patches. Your 4.14 kernel must already have SUSFS v2.1.0 (`CONFIG_KSU_SUSFS=y`) and KernelSU/APatch integrated.
+
+If your 4.14 kernel doesn't have SUSFS, you'll need to port the SUSFS patches manually from the [Super-Builders repository](https://github.com/Enginex0/Super-Builders). The GKI patches in that repo won't apply directly to 4.14 kernels due to code differences.
+
+**Also required:** KernelSU or APatch must be integrated first. See [KernelSU docs](https://kernelsu.org) or [APatch docs](https://apatch.org).
+
+### Step 1: Apply MountZero VFS Patches
 
 ```bash
 cd MountZero_Project
-./scripts/patch_susfs.sh /path/to/kernel/source
-```
-
-> **Note:** If your kernel already has SUSFS v2.1.0 applied, skip this step.
-
-### Step 2: Apply MountZero VFS Patches
-
-```bash
 ./scripts/patch_kernel.sh /path/to/kernel/source
 ```
 
-This will:
-1. Copy MountZero source files (`fs/mountzero.c`, `fs/mountzero_vfs.c`, headers)
-2. Update `fs/Makefile` to build mountzero
-3. Update `fs/Kconfig` to add `CONFIG_MOUNTZERO`
-4. Hook MountZero into `fs/namei.c` for VFS path interception
-
-### Step 3: Configure Kernel
+### Step 2: Configure Kernel
 
 Add to your defconfig:
 
 ```text
-# SUSFS v2.1.0 (if not already set)
+# SUSFS v2.1.0 (must already be set)
 CONFIG_KSU_SUSFS=y
 CONFIG_KSU_SUSFS_SUS_PATH=y
 CONFIG_KSU_SUSFS_SUS_MOUNT=y
@@ -121,7 +99,7 @@ CONFIG_KSU_SUSFS_SUS_MAP=y
 CONFIG_MOUNTZERO=y
 ```
 
-### Step 4: Build & Flash
+### Step 3: Build & Flash
 
 ```bash
 # Build kernel
@@ -135,6 +113,8 @@ fastboot flash boot boot.img
 
 # Reboot
 ```
+
+---
 
 ## 🏗️ Architecture
 
@@ -150,7 +130,9 @@ fastboot flash boot boot.img
 │              mzctl CLI (/data/adb/ksu/bin/mzctl)        │
 │  version, status, enable/disable, add/del/list/clear,   │
 │  module scan/install/list, uid block/unblock,           │
-│  susfs, guard, detect, dump                             │
+│  susfs (add-path, add-map, set-uname, reset-uname,      │
+│           hide-mounts, log, avc, cmdline, version,      │
+│           features), guard, detect, dump                │
 └──────────────────────┬──────────────────────────────────┘
                        │ IOCTL on /dev/mountzero
                        ▼
@@ -159,9 +141,9 @@ fastboot flash boot boot.img
 │  ├─ VFS path redirection (hash table + bloom filter)    │
 │  ├─ Auto module scanner (late_initcall_sync)            │
 │  ├─ Hot-plug kernel thread (5s polling)                 │
-│  ├─ SUSFS v2.1.0 bridge (all 9 features)                │
+│  ├─ SUSFS bridge (all 9 features via supercall)         │
+│  ├─ Direct uname spoofing (bypasses SUSFS binary bug)   │
 │  ├─ Bootloop guard (skip after 3 failures)              │
-│  ├─ BRENE root evasion engine                           │
 │  └─ Sysfs: /sys/kernel/mountzero/                       │
 └──────────────────────┬──────────────────────────────────┘
                        │ VFS hooks in fs/namei.c
@@ -172,43 +154,36 @@ fastboot flash boot boot.img
 └─────────────────────────────────────────────────────────┘
 ```
 
+---
+
 ## 📂 Project Structure
 
 ```
 MountZero_Project/
 ├── README.md                          # This file
 ├── LICENSE                            # GPL-2.0 license
-├── GITHUB_RELEASE_NOTES.txt           # Release template for GitHub
 ├── kernel/
 │   ├── patches/
-│   │   ├── susfs-v2.1.0/              # SUSFS v2.1.0 kernel patches
-│   │   │   ├── 001_susfs-v2.1.0-android-4.14.patch
-│   │   │   └── 001_susfs-v2.1.0-android13-5.15.patch
-│   │   └── mountzero/                 # MountZero VFS integration
-│   │       ├── 001_mountzero_vfs_kernel_integration.patch
-│   │       └── SOURCES.md
-│   └── source_files/                  # Source files to copy to kernel tree
+│   │   └── 003_mountzero_vfs.patch    # MountZero VFS kernel patch template
+│   └── source_files/
 │       ├── fs/
-│       │   ├── mountzero.c            # Core VFS driver (1350 lines)
-│       │   ├── mountzero_vfs.c        # VFS hooks (300 lines)
-│       │   └── mountzero_cli.c        # Userspace CLI source (950 lines)
+│       │   ├── mountzero.c            # Core VFS driver (~1400 lines)
+│       │   ├── mountzero_vfs.c        # VFS hooks (~300 lines)
+│       │   └── mountzero_cli.c        # Userspace CLI source (~1000 lines)
 │       └── include/linux/
 │           ├── mountzero.h            # Public IOCTL interface
 │           ├── mountzero_def.h        # Internal definitions
-│           ├── mountzero_vfs.h        # VFS hook declarations
-│           ├── susfs.h                # SUSFS v2.1.0 header
-│           └── susfs_def.h            # SUSFS v2.1.0 definitions
+│           └── mountzero_vfs.h        # VFS hook declarations
 ├── module/
 │   └── MountZero-Manager-v2.0.0-FLASHABLE.zip
 ├── scripts/
-│   ├── patch_susfs.sh                 # SUSFS v2.1.0 patcher
-│   ├── patch_kernel.sh                # MountZero VFS patcher
-│   ├── susfs_inline_hook_patches.sh   # SUSFS namei.c/d_path.c hooks
-│   └── apply_susfs_patch.py           # Python helper
+│   └── patch_kernel.sh                # One-command kernel patcher
 └── docs/
     ├── KERNEL_INTEGRATION.md          # Detailed kernel patching guide
     └── MODULE_GUIDE.md                # Module usage guide
 ```
+
+---
 
 ## ⚙️ Configuration
 
@@ -219,29 +194,77 @@ MountZero_Project/
 | `CONFIG_MOUNTZERO` | `y` | Enable MountZero VFS driver |
 | Depends on | `KSU_SUSFS` | Requires SUSFS to be enabled |
 
-### SUSFS v2.1.0 Config
+### Kernel Integration Details
 
-| Config | Description |
-|--------|-------------|
-| `CONFIG_KSU_SUSFS` | SUSFS core |
-| `CONFIG_KSU_SUSFS_SUS_PATH` | Path hiding |
-| `CONFIG_KSU_SUSFS_SUS_MOUNT` | Mount hiding |
-| `CONFIG_KSU_SUSFS_SUS_KSTAT` | Kstat spoofing |
-| `CONFIG_KSU_SUSFS_SPOOF_UNAME` | Uname spoofing |
-| `CONFIG_KSU_SUSFS_ENABLE_LOG` | Kernel logging |
-| `CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS` | Symbol hiding |
-| `CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG` | Cmdline spoofing |
-| `CONFIG_KSU_SUSFS_OPEN_REDIRECT` | Open redirect |
-| `CONFIG_KSU_SUSFS_SUS_MAP` | Maps hiding |
+| Component | Details |
+|-----------|---------|
+| **Driver registration** | `/dev/mountzero` misc device (dynamic minor) |
+| **Sysfs entries** | `/sys/kernel/mountzero/mz_version`, `/sys/kernel/mountzero/mz_status`, `/sys/kernel/mountzero/mz_guard_count`, `/sys/kernel/mountzero/mz_guard_threshold` |
+| **VFS hooks** | `fs/namei.c` → `mountzero_vfs_getname_hook()` in path resolution |
+| **Rule storage** | Hash table (1024 buckets) + 8192-bit bloom filter for O(1) lookups |
+| **Module scanner** | Runs at `late_initcall_sync`, scans `/data/adb/modules/` and `/data/local/` |
+| **Hot-plug thread** | Kernel thread polling every 5 seconds for new modules |
+| **Bootloop guard** | Stored in `/data/adb/mountzero/.bootcount`, skips mount after 3 failures |
 
-## 💻 CLI Usage
+### SUSFS Features Integration
+
+All 9 SUSFS features are accessible through MountZero:
+
+| SUSFS Feature | Kernel Config | MountZero Access |
+|---------------|--------------|------------------|
+| Path Hiding | `CONFIG_KSU_SUSFS_SUS_PATH` | `mzctl susfs add-path`, `bridge.sh` |
+| Mount Hiding | `CONFIG_KSU_SUSFS_SUS_MOUNT` | `mzctl susfs hide-mounts`, `hiding.sh` |
+| Kstat Spoofing | `CONFIG_KSU_SUSFS_SUS_KSTAT` | `mzctl susfs add-kstat`, `hiding.sh` |
+| Uname Spoofing | `CONFIG_KSU_SUSFS_SPOOF_UNAME` | `mzctl susfs set-uname`, WebUI Config tab |
+| Kernel Logging | `CONFIG_KSU_SUSFS_ENABLE_LOG` | `mzctl susfs log enable/disable`, `hiding.sh` |
+| Symbol Hiding | `CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS` | Built-in (kernel hides SUSFS symbols) |
+| Cmdline Spoofing | `CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG` | `mzctl susfs cmdline <file>`, `hiding.sh` |
+| Open Redirect | `CONFIG_KSU_SUSFS_OPEN_REDIRECT` | Built-in (SUSFS handles open redirection) |
+| Maps Hiding | `CONFIG_KSU_SUSFS_SUS_MAP` | `mzctl susfs add-map`, `hiding.sh` |
+
+---
+
+## 🔧 WebUI Features
+
+### 6 Tabs in KernelSU Manager
+
+| Tab | Features |
+|-----|----------|
+| **Status** | System info (kernel, Android, device, uptime, SELinux), Engine status (VFS rules, SUSFS paths/maps, blocked UIDs), Capabilities (VFS driver, SUSFS, OverlayFS, EROFS), VFS enable/disable buttons |
+| **Modules** | List all installed modules with active/disabled status, search/filter |
+| **VFS Rules** | View active redirect rules, add new rules (virtual → real path), delete rules, clear all rules |
+| **Config** | Mount engine selection, extra partitions, SUSFS hidden paths/maps, uname spoofing with auto-spoof toggle at boot, SELinux spoof toggle, ADB root toggle, save/reset config |
+| **Guard** | Bootloop guard ring display, boot count, threshold status, set new threshold, check/reset guard |
+| **Tools** | Kernel capability detection, diagnostic dump, BBR congestion control toggle, module operations (install, scan) |
+
+### Uname Spoofing
+
+- **Auto-spoof toggle** — when enabled, spoofs at boot with hardcoded default (`5.14.113-g9f6a47a`) or custom values
+- **Custom values** — set any release/version string via WebUI
+- **Reset to Stock** — restores real kernel version via `susfs set_uname default default`
+- **Persistence** — saved values survive reboots
+
+### BBR Congestion Control
+
+- **Toggle switch** — enables BBR (`net.core.default_qdisc=fq`, `net.ipv4.tcp_congestion_control=bbr`)
+- **Status display** — shows current algorithm, BBR availability
+- **Persistence** — saves state to `/data/adb/mountzero/bbr_enabled`, applied at boot by `service.sh`
+
+### ADB Root
+
+- **Toggle** — enables ADB root access via `setprop service.adb.root 1 && stop/start adbd`
+- **Persistence** — saves state to `/data/adb/mountzero/adb_root`, applied at boot by `service.sh`
+
+---
+
+## 🛠️ CLI Usage
 
 ```bash
 # Get into root shell
 adb shell su
 
 # Basic commands
-mzctl version                    # Show MountZero version
+mzctl version                    # Show Mountzero version
 mzctl status                     # Show VFS engine status
 mzctl enable                     # Enable VFS engine
 mzctl disable                    # Disable VFS engine
@@ -258,11 +281,17 @@ mzctl module install mymodule /data/adb/modules/mymodule    # Install module
 mzctl module install Droidspaces /data/local/Droidspaces custom  # Custom module
 
 # SUSFS operations
-mzctl susfs add-path /data/adb/ksu       # Add hidden path
+mzctl susfs add-path /data/adb/ksu           # Add hidden path
+mzctl susfs add-path-loop /data/adb/modules   # Add hidden path (loop detection)
 mzctl susfs add-map /data/adb/modules/X/zygisk.so  # Add hidden map
-mzctl susfs set-uname "4.14.356" "#1 SMP PREEMPT"   # Spoof uname
-mzctl susfs version                      # Show SUSFS version
-mzctl susfs features                     # Show enabled SUSFS features
+mzctl susfs set-uname '4.14.113-g9f6a47a' '#1 SMP PREEMPT Mon Oct 6 16:50:48 UTC 2025'  # Spoof uname
+mzctl susfs reset-uname                       # Restore actual kernel version
+mzctl susfs hide-mounts 1                     # Hide SUSFS mounts from non-su processes
+mzctl susfs log enable                        # Enable SUSFS kernel logging
+mzctl susfs avc enable                        # Enable AVC log spoofing
+mzctl susfs cmdline /data/adb/mountzero/fake_cmdline.txt  # Spoof cmdline
+mzctl susfs version                           # Show SUSFS version
+mzctl susfs features                          # Show SUSFS features
 
 # Bootloop guard
 mzctl guard check                        # Check guard status
@@ -272,6 +301,8 @@ mzctl guard recover                      # Reset guard after recovery
 mzctl detect                             # Detect kernel capabilities
 mzctl dump                               # Create diagnostic dump
 ```
+
+---
 
 ## 🛡️ Troubleshooting
 
@@ -299,28 +330,58 @@ mzctl dump                               # Create diagnostic dump
 - Verify `metamodule=1` in `module.prop`
 - Check KSU version supports WebUI
 
-## 🔗 Community
+---
 
-<div align="center">
-  <h3>
-    <a href="https://t.me/mastermindszs">
-      💬 @mastermindszs on Telegram
-    </a>
-  </h3>
-  <p>Join for updates, support, and discussion</p>
-</div>
+## 🤝 Credits & Community
+
+This project was built to bring VFS-level path redirection to 4.14 kernels. Massive appreciation to the teams behind the foundational tools that made this possible:
+
+- **[Super-Builders](https://github.com/Enginex0/Super-Builders)** – For the incredible work on SUSFS v2.1.0, ZeroMount, and the GKI patch ecosystem. Their work is the absolute foundation of modern Android root hiding. Huge thanks to the team for pushing the boundaries of what's possible.  
+  💬 **Join their community:** [Super Powers Telegram](https://t.me/superpowers9)
+- **[KernelSU](https://kernelsu.org)** – For the root framework and WebUI integration
+- **[APatch](https://apatch.org)** – For alternative root implementation
+
+---
+
+## 🛡️ Troubleshooting
+
+### Build Error: "undefined reference to mountzero_*"
+- Ensure both `mountzero.c` and `mountzero_vfs.c` are compiled
+- Check `fs/Makefile` has `obj-$(CONFIG_MOUNTZERO) += mountzero.o mountzero_vfs.o`
+
+### Build Error: "mountzero_vfs.h not found"
+- Verify headers are in `include/linux/`
+- Check `#include <linux/mountzero_vfs.h>` in `fs/namei.c`
+
+### Bootloop after flashing
+- MountZero has built-in bootloop guard (3 failures → skip mount)
+- Hold Volume Up + Down during boot to trigger safe mode
+- Flash kernel without MountZero config
+
+### Modules not mounting
+- Check `dmesg | grep mountzero` for errors
+- Verify `/dev/mountzero` exists
+- Ensure `CONFIG_KSU_SUSFS=y` is enabled
+- Ensure MountZero Manager module is installed
+
+### WebUI not showing
+- Check module files: `ls /data/adb/modules/mountzero_vfs/webroot/`
+- Verify `metamodule=1` in `module.prop`
+- Check KSU version supports WebUI
+
+---
 
 ## 📝 License
 
 GPL-2.0
 
-## 👤 Author
+## 👤 Author & Contact
 
 **爪卂丂ㄒ乇尺爪工刀ᗪ丂 (Mastermind)**
 
 - GitHub: [@mafiadan6](https://github.com/mafiadan6)
-- Telegram: [@mastermindszs](https://t.me/mastermindszs)
+- Telegram: [@bitcockiii](https://t.me/bitcockiii)
 
 ## 📦 Version
 
-v2.0.0 — Initial Release
+v2.0.0 — Complete Release

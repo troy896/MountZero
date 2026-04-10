@@ -21,10 +21,12 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/syscall.h>
 #include <errno.h>
 #include <dirent.h>
 #include <ctype.h>
 #include <time.h>
+#include <sys/reboot.h>
 
 /* Standalone IOCTL definitions — avoid kernel headers in userspace */
 #define MOUNTZERO_IOC_MAGIC 'Z'
@@ -36,12 +38,72 @@
 #define MOUNTZERO_IOC_DEL_REDIRECT   _IOW(MOUNTZERO_IOC_MAGIC, 11, char*)
 #define MOUNTZERO_IOC_ADD_SUS_PATH   _IOW(MOUNTZERO_IOC_MAGIC, 50, char*)
 #define MOUNTZERO_IOC_ADD_SUS_MAP    _IOW(MOUNTZERO_IOC_MAGIC, 51, char)
-#define MOUNTZERO_IOC_SET_UNAME      _IOW(MOUNTZERO_IOC_MAGIC, 60, struct mz_uname_info)
+#define MOUNTZERO_IOC_SET_UNAME      _IOW(MOUNTZERO_IOC_MAGIC, 75, struct mz_uname_info)
+#define MOUNTZERO_IOC_RESET_UNAME    _IO(MOUNTZERO_IOC_MAGIC, 76)
+#define MOUNTZERO_IOC_GET_UNAME_STATUS _IOR(MOUNTZERO_IOC_MAGIC, 77, struct mz_uname_status)
 #define MOUNTZERO_IOC_BLOCK_UID      _IOW(MOUNTZERO_IOC_MAGIC, 80, unsigned int)
 #define MOUNTZERO_IOC_UNBLOCK_UID    _IOW(MOUNTZERO_IOC_MAGIC, 81, unsigned int)
 #define MOUNTZERO_IOC_INSTALL_MODULE _IOW(MOUNTZERO_IOC_MAGIC, 70, struct mz_install_module)
 #define MOUNTZERO_IOC_CLEAR          _IO(MOUNTZERO_IOC_MAGIC, 100)
 #define MOUNTZERO_IOC_LIST           _IOR(MOUNTZERO_IOC_MAGIC, 101, struct mz_ioctl_list)
+
+/* Uname status struct for IOCTL */
+struct mz_uname_status {
+    int spoofed;
+    char release[64];
+    char version[64];
+    char stock_release[64];
+    char stock_version[64];
+};
+
+/* SUSFS supercall constants — hijack reboot() syscall */
+#define KSU_MAGIC1      0xDEADBEEF
+#define SUSFS_MAGIC     0xFAFAFAFA
+#define CMD_SUSFS_SET_UNAME             0x55590
+#define CMD_SUSFS_ADD_SUS_PATH          0x55580
+#define CMD_SUSFS_ADD_SUS_PATH_LOOP     0x55581
+#define CMD_SUSFS_ADD_SUS_MAP           0x55595
+#define CMD_SUSFS_ENABLE_LOG            0x55596
+#define CMD_SUSFS_SET_CMDLINE           0x55597
+#define CMD_SUSFS_HIDE_SUS_MNTS         0x55582
+#define CMD_SUSFS_ENABLE_AVC_SPOOF      0x55598
+#define CMD_SUSFS_SHOW_VERSION          0x555E1
+#define CMD_SUSFS_SHOW_FEATURES         0x555E2
+
+#define SUSFS_MAX_PATH 256
+#define SUSFS_MAX_UTS  65
+
+/* SUSFS supercall struct for set_uname */
+struct susfs_uname_cmd {
+    char release[SUSFS_MAX_UTS];
+    char version[SUSFS_MAX_UTS];
+    int  err;
+};
+
+/* SUSFS supercall struct for path/map */
+struct susfs_path_cmd {
+    char target_pathname[SUSFS_MAX_PATH];
+    int  err;
+};
+
+/* SUSFS supercall struct for log */
+struct susfs_log_cmd {
+    int enabled;
+    int err;
+};
+
+/* Direct SUSFS supercall via reboot() syscall hijack */
+static int susfs_supercall(unsigned int cmd, void *arg, size_t arg_size)
+{
+    /*
+     * KSU hooks the reboot() syscall:
+     * syscall(SYS_reboot, KSU_MAGIC1, SUSFS_MAGIC, cmd, arg_ptr)
+     * The kernel intercepts this and routes to SUSFS handlers.
+     */
+    syscall(SYS_reboot, KSU_MAGIC1, SUSFS_MAGIC, cmd, arg);
+    /* After the call, arg->err contains the result */
+    return 0;
+}
 
 struct mz_ioctl_rule {
     char virtual_path[256];
@@ -643,59 +705,114 @@ static int cmd_uid(int argc, char **argv)
 }
 
 /* ============================================================
- * SUSFS Bridge
+ * SUSFS Bridge — direct supercall via reboot() syscall hijack
  * ============================================================ */
 
 static int cmd_susfs(int argc, char **argv)
 {
-    int fd;
-
     if (argc < 2) {
         fprintf(stderr, "Usage: mountzero susfs <add-path|add-map|set-uname|version|features>\n");
         return 1;
     }
 
-    fd = mz_open_device();
-    if (fd < 0) return 1;
-
     if (strcmp(argv[1], "add-path") == 0 && argc >= 3) {
-        if (ioctl(fd, MOUNTZERO_IOC_ADD_SUS_PATH, argv[2]) == 0) {
+        struct susfs_path_cmd cmd_data = {0};
+        strncpy(cmd_data.target_pathname, argv[2], SUSFS_MAX_PATH - 1);
+        susfs_supercall(CMD_SUSFS_ADD_SUS_PATH, &cmd_data, sizeof(cmd_data));
+        if (cmd_data.err == 0) {
             printf("SUSFS path added: %s\n", argv[2]);
             return 0;
         }
+        fprintf(stderr, "Error: SUSFS add_path failed: %d\n", cmd_data.err);
+        return 1;
+    } else if (strcmp(argv[1], "add-path-loop") == 0 && argc >= 3) {
+        struct susfs_path_cmd cmd_data = {0};
+        strncpy(cmd_data.target_pathname, argv[2], SUSFS_MAX_PATH - 1);
+        susfs_supercall(CMD_SUSFS_ADD_SUS_PATH_LOOP, &cmd_data, sizeof(cmd_data));
+        if (cmd_data.err == 0) {
+            printf("SUSFS path loop added: %s\n", argv[2]);
+            return 0;
+        }
+        fprintf(stderr, "Error: SUSFS add_path_loop failed: %d\n", cmd_data.err);
+        return 1;
     } else if (strcmp(argv[1], "add-map") == 0 && argc >= 3) {
-        if (ioctl(fd, MOUNTZERO_IOC_ADD_SUS_MAP, argv[2]) == 0) {
+        struct susfs_path_cmd cmd_data = {0};
+        strncpy(cmd_data.target_pathname, argv[2], SUSFS_MAX_PATH - 1);
+        susfs_supercall(CMD_SUSFS_ADD_SUS_MAP, &cmd_data, sizeof(cmd_data));
+        if (cmd_data.err == 0) {
             printf("SUSFS map added: %s\n", argv[2]);
             return 0;
         }
+        fprintf(stderr, "Error: SUSFS add_map failed: %d\n", cmd_data.err);
+        return 1;
     } else if (strcmp(argv[1], "set-uname") == 0 && argc >= 4) {
-        struct mz_uname_info uname_info;
-        memset(&uname_info, 0, sizeof(uname_info));
-        strncpy(uname_info.kernel_release, argv[2], sizeof(uname_info.kernel_release) - 1);
-        strncpy(uname_info.kernel_version, argv[3], sizeof(uname_info.kernel_version) - 1);
-        if (ioctl(fd, MOUNTZERO_IOC_SET_UNAME, &uname_info) == 0) {
-            printf("SUSFS uname spoofed\n");
-            return 0;
+        /* Direct SUSFS supercall for set_uname — bypasses broken susfs binary */
+        struct susfs_uname_cmd {
+            char release[65];
+            char version[65];
+            int err;
+        } cmd_data = {0};
+        strncpy(cmd_data.release, argv[2], 64);
+        strncpy(cmd_data.version, argv[3], 64);
+        syscall(SYS_reboot, KSU_MAGIC1, SUSFS_MAGIC, CMD_SUSFS_SET_UNAME, &cmd_data);
+        if (cmd_data.err == 0) {
+            printf("Uname spoofed: release='%s', version='%s'\n", argv[2], argv[3]);
+        } else {
+            printf("SUSFS set_uname returned: %d\n", cmd_data.err);
         }
+        return 0;
+    } else if (strcmp(argv[1], "reset-uname") == 0) {
+        system("/data/adb/ksu/bin/susfs set_uname default default 2>/dev/null || /data/adb/ksu/bin/ksu_susfs set_uname default default 2>/dev/null");
+        return 0;
+    } else if (strcmp(argv[1], "uname-status") == 0) {
+        printf("Release: ");
+        system("uname -r 2>/dev/null");
+        printf("Version: ");
+        system("uname -v 2>/dev/null");
+        return 0;
     } else if (strcmp(argv[1], "version") == 0) {
-        FILE *f = popen("ksu_susfs show version 2>/dev/null", "r");
-        if (f) {
-            char buf[256];
-            while (fgets(buf, sizeof(buf), f)) printf("%s", buf);
-            pclose(f);
-            return 0;
-        }
+        struct { char v[16]; int err; } cmd_data = {0};
+        susfs_supercall(CMD_SUSFS_SHOW_VERSION, &cmd_data, sizeof(cmd_data));
+        printf("%s\n", cmd_data.v);
+        return 0;
     } else if (strcmp(argv[1], "features") == 0) {
-        FILE *f = popen("ksu_susfs show enabled_features 2>/dev/null", "r");
-        if (f) {
-            char buf[256];
-            while (fgets(buf, sizeof(buf), f)) printf("%s", buf);
-            pclose(f);
+        char buf[8192] = {0};
+        struct { char f[8192]; int err; } *d = (void*)buf;
+        susfs_supercall(CMD_SUSFS_SHOW_FEATURES, d, sizeof(*d));
+        printf("%s\n", d->f);
+        return 0;
+    } else if (strcmp(argv[1], "hide-mounts") == 0 && argc >= 3) {
+        struct susfs_log_cmd cmd_data = {0};
+        cmd_data.enabled = (strcmp(argv[2], "1") == 0 || strcmp(argv[2], "true") == 0) ? 1 : 0;
+        susfs_supercall(CMD_SUSFS_HIDE_SUS_MNTS, &cmd_data, sizeof(cmd_data));
+        printf("SUSFS mount hiding %s\n", cmd_data.enabled ? "enabled" : "disabled");
+        return 0;
+    } else if (strcmp(argv[1], "log") == 0 && argc >= 3) {
+        struct susfs_log_cmd cmd_data = {0};
+        cmd_data.enabled = (strcmp(argv[2], "1") == 0 || strcmp(argv[2], "enable") == 0) ? 1 : 0;
+        susfs_supercall(CMD_SUSFS_ENABLE_LOG, &cmd_data, sizeof(cmd_data));
+        printf("SUSFS logging %s\n", cmd_data.enabled ? "enabled" : "disabled");
+        return 0;
+    } else if (strcmp(argv[1], "avc") == 0 && argc >= 3) {
+        struct susfs_log_cmd cmd_data = {0};
+        cmd_data.enabled = (strcmp(argv[2], "1") == 0 || strcmp(argv[2], "enable") == 0) ? 1 : 0;
+        susfs_supercall(CMD_SUSFS_ENABLE_AVC_SPOOF, &cmd_data, sizeof(cmd_data));
+        printf("SUSFS AVC log spoofing %s\n", cmd_data.enabled ? "enabled" : "disabled");
+        return 0;
+    } else if (strcmp(argv[1], "cmdline") == 0 && argc >= 3) {
+        struct { char buf[4096]; int err; } cmd_data = {0};
+        strncpy(cmd_data.buf, argv[2], 4095);
+        susfs_supercall(CMD_SUSFS_SET_CMDLINE, &cmd_data, sizeof(cmd_data));
+        if (cmd_data.err == 0) {
+            printf("SUSFS cmdline spoofed\n");
             return 0;
         }
+        fprintf(stderr, "Error: SUSFS cmdline failed: %d\n", cmd_data.err);
+        return 1;
     }
 
-    fprintf(stderr, "Error: SUSFS operation failed: %s\n", strerror(errno));
+    fprintf(stderr, "Unknown SUSFS subcommand: %s\n", argv[1]);
+    fprintf(stderr, "Usage: mountzero susfs <add-path|add-path-loop|add-map|set-uname|reset-uname|uname-status|hide-mounts|log|avc|cmdline|version|features>\n");
     return 1;
 }
 

@@ -1,23 +1,20 @@
 #!/bin/bash
 # MountZero VFS - Kernel Patcher
-# Applies ONLY MountZero VFS patches to a kernel source tree
-#
-# Prerequisites:
-#   - Kernel already has SUSFS v2.1.0 patches applied
-#   - Kernel has KernelSU integrated
+# Applies MountZero VFS patches to a kernel source tree
 #
 # Usage: ./patch_kernel.sh /path/to/kernel/source
 #
-# What this patches:
-#   1. Copies MountZero VFS source files (mountzero.c, mountzero_vfs.c, headers)
+# Prerequisites:
+#   - Kernel already has SUSFS v2.1.0 patches applied
+#   - Kernel has KernelSU or APatch integrated
+#
+# What this script does:
+#   1. Copies MountZero source files to kernel tree
 #   2. Updates fs/Makefile to build mountzero
 #   3. Updates fs/Kconfig to add CONFIG_MOUNTZERO
 #   4. Hooks MountZero into fs/namei.c for VFS path interception
 #
-# After patching, enable CONFIG_MOUNTZERO=y in your defconfig
-#
-# License: GPL v2.0
-# Author: 爪卂丂ㄒ乇尺爪工刀ᗪ丂
+# After patching, add CONFIG_MOUNTZERO=y to your defconfig
 
 set -e
 
@@ -62,31 +59,20 @@ if [ ! -d "$SRC_FILES" ]; then
 fi
 
 # Copy fs/ files
-if [ -f "$SRC_FILES/fs/mountzero.c" ]; then
-    cp "$SRC_FILES/fs/mountzero.c" "$SOURCE_DIR/fs/mountzero.c"
-    echo "  ✅ fs/mountzero.c installed ($(wc -l < "$SRC_FILES/fs/mountzero.c") lines)"
-fi
-
-if [ -f "$SRC_FILES/fs/mountzero_vfs.c" ]; then
-    cp "$SRC_FILES/fs/mountzero_vfs.c" "$SOURCE_DIR/fs/mountzero_vfs.c"
-    echo "  ✅ fs/mountzero_vfs.c installed ($(wc -l < "$SRC_FILES/fs/mountzero_vfs.c") lines)"
-fi
+for f in mountzero.c mountzero_vfs.c; do
+    if [ -f "$SRC_FILES/fs/$f" ]; then
+        cp "$SRC_FILES/fs/$f" "$SOURCE_DIR/fs/$f"
+        echo "  ✅ fs/$f installed ($(wc -l < "$SRC_FILES/fs/$f") lines)"
+    fi
+done
 
 # Copy headers
-if [ -f "$SRC_FILES/include/linux/mountzero.h" ]; then
-    cp "$SRC_FILES/include/linux/mountzero.h" "$SOURCE_DIR/include/linux/mountzero.h"
-    echo "  ✅ include/linux/mountzero.h installed"
-fi
-
-if [ -f "$SRC_FILES/include/linux/mountzero_def.h" ]; then
-    cp "$SRC_FILES/include/linux/mountzero_def.h" "$SOURCE_DIR/include/linux/mountzero_def.h"
-    echo "  ✅ include/linux/mountzero_def.h installed"
-fi
-
-if [ -f "$SRC_FILES/include/linux/mountzero_vfs.h" ]; then
-    cp "$SRC_FILES/include/linux/mountzero_vfs.h" "$SOURCE_DIR/include/linux/mountzero_vfs.h"
-    echo "  ✅ include/linux/mountzero_vfs.h installed"
-fi
+for f in mountzero.h mountzero_def.h mountzero_vfs.h; do
+    if [ -f "$SRC_FILES/include/linux/$f" ]; then
+        cp "$SRC_FILES/include/linux/$f" "$SOURCE_DIR/include/linux/$f"
+        echo "  ✅ include/linux/$f installed"
+    fi
+done
 
 echo ""
 
@@ -136,6 +122,8 @@ config MOUNTZERO
       - Hot-plug module detection
       - SUSFS bridge integration
       - BRENE root evasion engine
+      - Direct uname spoofing
+      - Bootloop guard
 KCONFIG
     echo "  ✅ fs/Kconfig updated"
 else

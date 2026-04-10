@@ -1,12 +1,41 @@
 # Kernel Integration Guide
 
+## Target Kernel
+
+This project is **built and tested for Android 4.14 kernels** (Samsung MT6768 platform).
+
+It can also be integrated into **5.x/6.x GKI kernels** that already have SUSFS 2.1.0 and KernelSU/APatch integrated. The source files and patching process are identical across kernel versions — the only potential adjustment is the `fs/namei.c` hook location, which the patch script handles automatically.
+
+> **Important:** This repository does NOT include SUSFS patches. Your kernel must already have SUSFS v2.1.0 (`CONFIG_KSU_SUSFS=y`) and KernelSU/APatch integrated before applying MountZero.
+
+## Step 0: Apply SUSFS Patches (If Not Already Integrated)
+
+If your kernel doesn't have SUSFS, apply the SUSFS v2.1.0 patches **before** applying MountZero. Use the correct patch for your kernel version:
+
+| Your Kernel Version | SUSFS Patch to Apply |
+|---------------------|---------------------|
+| **4.14.x** | [Super-Builders: `50_add_susfs_in_gki-android-4.14.patch`](https://github.com/Enginex0/Super-Builders/blob/main/android14-5.15/ReSukiSU/patches/50_add_susfs_in_gki-android-4.14.patch) |
+| **5.4.x** | [Super-Builders: `50_add_susfs_in_gki-android12-5.4.patch`](https://github.com/Enginex0/Super-Builders/blob/main/android12-5.4/ReSukiSU/patches/50_add_susfs_in_gki-android12-5.4.patch) |
+| **5.10.x** | [Super-Builders: `50_add_susfs_in_gki-android12-5.10.patch`](https://github.com/Enginex0/Super-Builders/blob/main/android12-5.10/ReSukiSU/patches/50_add_susfs_in_gki-android12-5.10.patch) |
+| **5.15.x** | [Super-Builders: `50_add_susfs_in_gki-android13-5.15.patch`](https://github.com/Enginex0/Super-Builders/blob/main/android13-5.15/ReSukiSU/patches/50_add_susfs_in_gki-android13-5.15.patch) |
+| **6.1.x** | [Super-Builders: `50_add_susfs_in_gki-android14-6.1.patch`](https://github.com/Enginex0/Super-Builders/blob/main/android14-6.1/ReSukiSU/patches/50_add_susfs_in_gki-android14-6.1.patch) |
+| **6.6.x** | [Super-Builders: `50_add_susfs_in_gki-android14-6.6.patch`](https://github.com/Enginex0/Super-Builders/blob/main/android14-6.6/ReSukiSU/patches/50_add_susfs_in_gki-android14-6.6.patch) |
+
+**To apply SUSFS patches:**
+```bash
+cd /path/to/kernel/source
+patch -p1 < /path/to/50_add_susfs_in_gki-<your-kernel-version>.patch
+```
+
+**Also required:** KernelSU or APatch must be integrated first. See [KernelSU docs](https://kernelsu.org) or [APatch docs](https://apatch.org).
+
 ## Prerequisites
 
 Your kernel must already have:
-- **KernelSU** integrated
-- **SUSFS** patches applied (`CONFIG_KSU_SUSFS=y`)
+- **KernelSU** or **APatch** integrated
+- **SUSFS v2.1.0** patches applied (`CONFIG_KSU_SUSFS=y`)
 
-MountZero only adds the VFS path redirection layer on top of your existing SUSFS setup.
+MountZero only adds the VFS path redirection layer on top of SUSFS. It does NOT include SUSFS patches.
 
 ## Quick Integration
 
@@ -15,8 +44,8 @@ cd MountZero_Project
 ./scripts/patch_kernel.sh /path/to/kernel/source
 ```
 
-That's it. The script will:
-1. Copy MountZero source files to your kernel tree
+This script will:
+1. Copy `mountzero.c`, `mountzero_vfs.c`, and headers to your kernel tree
 2. Update `fs/Makefile` to build mountzero
 3. Update `fs/Kconfig` to add `CONFIG_MOUNTZERO`
 4. Hook MountZero into `fs/namei.c` for VFS path interception
@@ -57,18 +86,21 @@ config MOUNTZERO
     default y
     help
       VFS-level path redirection for KernelSU modules.
-      Works alongside SUSFS to provide:
+      Works alongside SUSFS v2.1.0 to provide:
       - Automatic module mounting at boot
       - Path redirection without overlayfs
       - Virtual directory injection
       - Fast bloom filter lookups
       - Hot-plug module detection
       - SUSFS bridge integration
+      - BRENE root evasion engine
+      - Direct uname spoofing
+      - Bootloop guard
 ```
 
-### 4. Hook into fs/namei.c
+### 4. Hook MountZero into fs/namei.c
 
-**Add include** near the top (after other kernel includes):
+**Add include** near the top (after SUSFS includes):
 
 ```c
 #ifdef CONFIG_MOUNTZERO
@@ -97,10 +129,7 @@ Enable:
 ```
 File systems  --->
     [*] MountZero VFS Path Redirection System (CONFIG_MOUNTZERO=y)
-```
 
-Ensure SUSFS is already enabled:
-```
 KernelSU  --->
     [*] SUSFS support (CONFIG_KSU_SUSFS=y)
     [*]   SUSFS path hiding (CONFIG_KSU_SUSFS_SUS_PATH)
@@ -132,38 +161,57 @@ adb push MountZero_Project/module/MountZero-Manager-v2.0.0-FLASHABLE.zip /sdcard
 # Then install via KSU app
 ```
 
-## Troubleshooting
+---
 
-### Build Error: "undefined reference to mountzero_*"
-- Ensure both `mountzero.c` and `mountzero_vfs.c` are compiled
-- Check `fs/Makefile` has `obj-$(CONFIG_MOUNTZERO) += mountzero.o mountzero_vfs.o`
+## What MountZero Adds to Your Kernel
 
-### Build Error: "mountzero_vfs.h not found"
-- Verify headers are in `include/linux/`
-- Check `#include <linux/mountzero_vfs.h>` in `fs/namei.c`
+### New Files
+| File | Lines | Purpose |
+|------|-------|---------|
+| `fs/mountzero.c` | ~1400 | Core VFS driver, SUSFS bridge, uname spoof, bootloop guard, sysfs |
+| `fs/mountzero_vfs.c` | ~300 | VFS hooks: path redirection, directory injection, statfs/xattr spoofing |
+| `fs/mountzero_cli.c` | ~1000 | Userspace CLI tool source (compiled to `mzctl` binary) |
+| `include/linux/mountzero.h` | ~160 | Public header: IOCTL interface, function declarations |
+| `include/linux/mountzero_def.h` | ~50 | Internal definitions: rule struct, flags, hash table |
+| `include/linux/mountzero_vfs.h` | ~70 | VFS hook header with CONFIG guards |
 
-### Bootloop after flashing
-- MountZero has built-in bootloop guard (3 failures → skip mount)
-- Hold Volume Up + Down during boot to trigger safe mode
-- Flash kernel without MountZero config
+### Modified Files
+| File | Changes |
+|------|---------|
+| `fs/Makefile` | `obj-$(CONFIG_MOUNTZERO) += mountzero.o mountzero_vfs.o` |
+| `fs/Kconfig` | `config MOUNTZERO` entry (depends on KSU_SUSFS) |
+| `fs/namei.c` | Include `mountzero_vfs.h`, call `mountzero_vfs_getname_hook()` |
 
-### Modules not mounting
-- Check `dmesg | grep mountzero` for errors
-- Verify `/dev/mountzero` exists
-- Ensure `CONFIG_KSU_SUSFS=y` is enabled
+### Key Features
+- **VFS Path Redirection**: Hash table (1024 buckets) + 8192-bit bloom filter
+- **Auto Module Scanner**: Scans `/data/adb/modules/` and `/data/local/` at boot via `late_initcall_sync`
+- **Hot-Plug Thread**: Kernel thread polling every 5 seconds
+- **SUSFS Bridge**: Direct supercall interface to all 9 SUSFS features
+- **Direct Uname Spoofing**: Bypasses SUSFS binary bug for custom values
+- **Bootloop Guard**: Stored in `/data/adb/mountzero/.bootcount`, skips mount after 3 failures
+- **Sysfs Interface**: `/sys/kernel/mountzero/` for version, status, guard config
 
-### WebUI not showing
-- Check module files: `ls /data/adb/modules/mountzero_vfs/webroot/`
-- Verify `metamodule=1` in `module.prop`
-- Check KSU version supports WebUI
+---
 
 ## Kernel Version Compatibility
 
 | Kernel Version | Status | Notes |
 |---------------|--------|-------|
 | 4.14.x | ✅ Tested | Samsung MT6768 (this kernel) |
-| 5.4.x | ✅ Compatible | GKI kernels |
-| 5.10.x | ✅ Compatible | Android 12/13 GKI |
-| 5.15.x | ✅ Compatible | Android 13/14 GKI |
+| 5.4.x | ✅ Compatible | GKI kernels with SUSFS 2.1.0 |
+| 5.10.x | ✅ Compatible | Android 12/13 GKI with SUSFS 2.1.0 |
+| 5.15.x | ✅ Compatible | Android 13/14 GKI with SUSFS 2.1.0 |
 | 6.1.x | ⚠️ May need adjustment | namei.c structure changed |
 | 6.6.x | ⚠️ May need adjustment | namei.c structure changed |
+
+### Integration Notes for 5.x+ Kernels
+
+MountZero was developed for 4.14 kernels, but the source files work on 5.x/6.x GKI kernels with minimal changes:
+
+1. **fs/namei.c hook location** — The `getname_flags()` function structure may differ slightly. The `patch_kernel.sh` script auto-detects the correct location, but you may need to manually place the hook if auto-detection fails.
+
+2. **SUSFS supercall compatibility** — MountZero uses the same `syscall(SYS_reboot, ...)` supercall mechanism as SUSFS 2.1.0. If your kernel uses a different SUSFS version, the supercall commands may not work.
+
+3. **`compat_ptr_ioctl`** — If your kernel doesn't have `compat_ptr_ioctl`, the mountzero file operations will fall back to using `mountzero_ioctl` directly for compat ioctls (already handled in the source).
+
+4. **Build system** — The `obj-$(CONFIG_MOUNTZERO) += mountzero.o mountzero_vfs.o` line in `fs/Makefile` works identically across all kernel versions.

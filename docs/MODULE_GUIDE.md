@@ -2,91 +2,95 @@
 
 ## Installation
 
-1. Flash the kernel with MountZero VFS enabled
-2. Flash `MountZero-Manager-v2.0.0-FLASHABLE.zip` via KernelSU
-3. Reboot device
+1. Download `MountZero-Manager-v2.0.0-FLASHABLE.zip`
+2. Open KernelSU app → Modules → Install from storage
+3. Select the zip file
+4. Reboot device
 
-## After Boot
+## Post-Installation
 
-MountZero automatically:
-- Scans `/data/adb/modules/` for KernelSU modules
-- Scans `/data/local/` for custom modules (Droidspaces, etc.)
-- Creates VFS redirect rules for all module files
-- Applies BRENE hiding engine (path/map/prop spoofing)
+After reboot:
+- MountZero VFS engine starts automatically
+- Modules are scanned and redirect rules created
+- WebUI is available in KernelSU manager
+- Bootloop guard is active (3 failures → skip mount)
 
-## WebUI Management
-
-Open KernelSU → MountZero module → WebUI tab
+## WebUI Usage
 
 ### Status Tab
-- **System Info**: Kernel version, Android version, device model, uptime, SELinux status
-- **Enchanted SUSFS VFS**: VFS status, SUSFS version, rule counts, SUSFS paths/maps
-- **Capabilities**: VFS driver, SUSFS, OverlayFS, EROFS availability
-- **Controls**: Enable/disable VFS engine, refresh status
+- View system info, engine status, capabilities
+- Enable/disable VFS engine
 
 ### Modules Tab
-- Lists all installed KernelSU modules
-- Shows active/disabled status
+- List all installed modules with active/disabled status
 - Search/filter modules
 
 ### VFS Rules Tab
-- View all active redirect rules
+- View active redirect rules
 - Add new rules: virtual path → real path
 - Delete individual rules
 - Clear all rules
 
 ### Config Tab
-- **Mount Settings**: Mount engine (VFS/overlay/magic), extra partitions, SELinux spoof, mount hiding
-- **SUSFS Bridge**: Hidden paths, hidden maps, uname spoofing
-- **ADB Root**: Enable ADB root access via axon injection
-- Save/reset config
+- **Mount Settings**: Mount engine selection, extra partitions, SELinux spoof, mount hiding
+- **SUSFS Bridge**: Hidden paths, hidden maps, cmdline spoofing
+- **Uname Spoofing**: Custom release/version strings, auto-spoof toggle at boot
+- **ADB Root**: Toggle ADB root access with persistence
 
 ### Guard Tab
-- Bootloop guard status
-- Boot count and threshold
+- View bootloop guard ring display
+- Check boot count and threshold
+- Set new threshold (1-10)
 - Reset guard after recovery
 
 ### Tools Tab
 - **Diagnostics**: Detect kernel capabilities, create diagnostic dump
+- **BBR**: Toggle BBR congestion control (persists across reboots)
 - **Module Operations**: Manual module install, scan all modules
 
 ## CLI Usage
 
 ```bash
-# Get into shell
+# Get into root shell
 adb shell su
 
 # Basic commands
-mzctl version
-mzctl status
-mzctl enable
-mzctl disable
+mzctl version                    # Show Mountzero version
+mzctl status                     # Show VFS engine status
+mzctl enable                     # Enable VFS engine
+mzctl disable                    # Disable VFS engine
 
 # Rule management
-mzctl add /system/bin/su /data/adb/modules/X/system/bin/su
-mzctl del /system/bin/su
-mzctl list
-mzctl clear
+mzctl add /system/bin/su /data/adb/modules/X/system/bin/su   # Add rule
+mzctl del /system/bin/su                                    # Delete rule
+mzctl list                                                  # List all rules
+mzctl clear                                                 # Clear all rules
 
 # Module management
-mzctl module scan
-mzctl module install mymodule /data/adb/modules/mymodule
-mzctl module install Droidspaces /data/local/Droidspaces custom
+mzctl module scan                                           # Scan all modules
+mzctl module install mymodule /data/adb/modules/mymodule    # Install module
+mzctl module install Droidspaces /data/local/Droidspaces custom  # Custom module
 
 # SUSFS operations
-mzctl susfs add-path /data/adb/ksu
-mzctl susfs add-map /data/adb/modules/X/zygisk.so
-mzctl susfs set-uname "4.14.356" "#1 SMP PREEMPT"
-mzctl susfs version
-mzctl susfs features
+mzctl susfs add-path /data/adb/ksu           # Add hidden path
+mzctl susfs add-path-loop /data/adb/modules   # Add hidden path (loop detection)
+mzctl susfs add-map /data/adb/modules/X/zygisk.so  # Add hidden map
+mzctl susfs set-uname '4.14.113-g9f6a47a' '#1 SMP PREEMPT Mon Oct 6 16:50:48 UTC 2025'  # Spoof uname
+mzctl susfs reset-uname                       # Restore actual kernel version
+mzctl susfs hide-mounts 1                     # Hide SUSFS mounts from non-su processes
+mzctl susfs log enable                        # Enable SUSFS kernel logging
+mzctl susfs avc enable                        # Enable AVC log spoofing
+mzctl susfs cmdline /data/adb/mountzero/fake_cmdline.txt  # Spoof cmdline
+mzctl susfs version                           # Show SUSFS version
+mzctl susfs features                          # Show SUSFS features
 
 # Bootloop guard
-mzctl guard check
-mzctl guard recover
+mzctl guard check                        # Check guard status
+mzctl guard recover                      # Reset guard after recovery
 
 # Diagnostics
-mzctl detect
-mzctl dump
+mzctl detect                             # Detect kernel capabilities
+mzctl dump                               # Create diagnostic dump
 ```
 
 ## Configuration Files
@@ -95,95 +99,77 @@ All configs stored in `/data/adb/mountzero/`:
 
 ```
 /data/adb/mountzero/
-├── config.toml           # Main configuration
-├── custom_sus_path.txt   # Custom SUSFS paths to hide
-├── custom_sus_map.txt    # Custom SUSFS maps to hide
-├── logs.txt              # Hiding engine logs
-└── .bootcount            # Bootloop counter
+├── config.toml              # Main configuration
+├── custom_sus_path.txt      # Custom SUSFS paths to hide
+├── custom_sus_map.txt       # Custom SUSFS maps to hide
+├── bbr_enabled              # BBR toggle state (1 or 0)
+├── adb_root                 # ADB root toggle state (true or false)
+├── uname_spoof_enabled      # Uname auto-spoof toggle state (1 or 0)
+├── uname_release              # Custom uname release string
+├── uname_version              # Custom uname version string
+├── .bootcount               # Bootloop guard counter
+└── logs.txt                 # Hiding engine logs
 ```
 
-### config.toml Example
+## Module Structure
 
-```toml
-[mount]
-mountEngine = "vfs"
-mountSource = "KSU"
-partitions = ["product", "system_ext", "vendor"]
-
-[susfs]
-enabled = true
-pathHide = true
-mapsHide = true
-kstat = true
-susfsLog = false
-avcLogSpoofing = false
-
-[brene]
-verifiedBootHash = ""
-kernelUmount = true
-hideSusMounts = true
-forceHideLsposed = true
-spoofCmdline = true
-hideKsuLoops = true
-propSpoofing = true
-autoHideInjections = true
-
-[guard]
-enabled = true
-bootTimeout = 120
-markerThreshold = 3
-
-[perf]
-enabled = true
-
-[adb]
-adbRoot = false
 ```
-
-## BRENE Hiding Engine
-
-The BRENE (Built-in Root Evasion Neutralization Engine) provides:
-
-### Path Hiding
-Hides files/directories from `readdir` and path lookups for unprivileged apps:
-- `/data/adb/ksu/` - KSU binary
-- `/data/adb/modules/` - Module directory
-- `/data/local/tmp/` - Temp files
-- Custom paths via `custom_sus_path.txt`
-
-### Maps Hiding
-Hides library mappings from `/proc/PID/maps`:
-- Zygisk injection libraries
-- LSPosed dex2oat paths
-- Custom maps via `custom_sus_map.txt`
-
-### Properties Spoofing
-Spoofs 20+ Android system properties:
-- `ro.secure=1`, `ro.debuggable=0` - Hide root
-- `ro.boot.flash.locked=1` - Locked bootloader
-- `ro.boot.verifiedbootstate=green` - Green boot state
-- `ro.build.type=user` - User build (not userdebug)
-
-### Uname Spoofing
-Returns stock kernel version via `uname`:
-- `uname -r` → Stock version string
-- `uname -v` → Stock build string
-
-### Cmdline Spoofing
-Modifies `/proc/cmdline` to show clean boot state:
-- `androidboot.verifiedbootstate=green`
-- `androidboot.vbmeta.device_state=locked`
-
-## Hot-Plug Detection
-
-MountZero runs a background daemon that:
-1. Polls `/data/adb/modules_update/` every 5 seconds
-2. Polls `/data/local/` for new custom modules
-3. Automatically installs and scans new modules
-4. No reboot required for new modules
+/data/adb/modules/mountzero_vfs/
+├── bin/
+│   ├── mzctl                # CLI binary (783KB)
+│   └── susfs                # SUSFS CLI binary (23KB)
+├── webroot/
+│   ├── index.html           # WebUI main page
+│   ├── styles.css           # Dark glassmorphism theme
+│   ├── script.js            # WebUI controller
+│   └── assets/
+│       └── kernelsu.js      # KernelSU JS SDK
+├── customize.sh             # Installation script
+├── post-fs-data.sh          # Early boot script
+├── service.sh               # Hot-plug daemon + boot-time config
+├── metamount.sh             # Metamodule mount hook
+├── metainstall.sh           # Hot module install handler
+├── hiding.sh                # BRENE hiding engine
+├── bridge.sh                # SUSFS bridge reconciler
+├── axon.sh                  # ADB root injection
+├── config.sh                # Config manager
+├── sepolicy.rule            # SELinux policy rules
+├── module.prop              # Module metadata
+└── custom_sus_*.txt         # Custom SUSFS configs
+```
 
 ## Uninstall
 
-1. Remove module via KernelSU
-2. Or manually: `touch /data/adb/modules/mountzero_vfs/remove`
+1. Open KernelSU app → Modules → MountZero VFS
+2. Tap the remove button
 3. Reboot device
+
+Or manually:
+```bash
+adb shell su
+touch /data/adb/modules/mountzero_vfs/remove
+reboot
+```
+
+## Troubleshooting
+
+### Binary not found errors
+- Check `/data/adb/ksu/bin/mzctl` exists
+- If missing, the module's `customize.sh` failed to copy it
+- Reinstall the module
+
+### WebUI not loading
+- Check module files: `ls /data/adb/modules/mountzero_vfs/webroot/`
+- Verify `metamodule=1` in `module.prop`
+- Check KSU version supports WebUI
+
+### Modules not scanning
+- Check `dmesg | grep mountzero` for errors
+- Verify `/dev/mountzero` exists
+- Ensure `CONFIG_KSU_SUSFS=y` is enabled
+- Ensure MountZero Manager module is installed
+
+### BBR not enabling
+- Check kernel config: `cat /proc/sys/net/ipv4/tcp_available_congestion_control`
+- BBR must be compiled into kernel (`CONFIG_TCP_CONG_BBR=y`)
+- Check `dmesg | grep mountzero` for BBR errors

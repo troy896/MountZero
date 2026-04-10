@@ -33,7 +33,11 @@
 /* IOCTL Commands - SUSFS Bridge */
 #define MOUNTZERO_IOC_ADD_SUS_PATH   _IOW(MOUNTZERO_IOC_MAGIC, 50, char*)
 #define MOUNTZERO_IOC_ADD_SUS_MAP    _IOW(MOUNTZERO_IOC_MAGIC, 51, char*)
-#define MOUNTZERO_IOC_SET_UNAME      _IOW(MOUNTZERO_IOC_MAGIC, 60, struct mz_uname_info)
+
+/* IOCTL Commands - Uname Spoofing (MountZero direct, not SUSFS) */
+#define MOUNTZERO_IOC_SET_UNAME      _IOW(MOUNTZERO_IOC_MAGIC, 75, struct mz_uname_info)
+#define MOUNTZERO_IOC_RESET_UNAME    _IO(MOUNTZERO_IOC_MAGIC, 76)
+#define MOUNTZERO_IOC_GET_UNAME_STATUS _IOR(MOUNTZERO_IOC_MAGIC, 77, struct mz_uname_status)
 
 /* IOCTL Commands - Module Management */
 #define MOUNTZERO_IOC_INSTALL_MODULE _IOW(MOUNTZERO_IOC_MAGIC, 70, struct mz_install_module)
@@ -75,6 +79,14 @@ struct mz_uname_info {
     char kernel_version[64];
 };
 
+struct mz_uname_status {
+    int spoofed;
+    char release[64];
+    char version[64];
+    char stock_release[64];
+    char stock_version[64];
+};
+
 struct mz_install_module {
     char module_id[256];
     char module_path[512];
@@ -109,7 +121,12 @@ int mountzero_del_redirect(const char *virtual_path);
 int mountzero_install_module(const char *module_id, const char *module_path, bool is_custom);
 int mountzero_scan_single_module(const char *module_id, const char *module_path, bool is_custom);
 
-/* SUSFS Bridge */
+/* SUSFS Bridge (kernel-space helpers, userspace uses IOCTL) */
+int mountzero_do_spoof_uname(const char *release, const char *version);
+int mountzero_reset_uname(void);
+int mountzero_get_uname_status(char *buf, size_t len);
+
+/* SUSFS pass-through (called via IOCTL or scripts) */
 int mountzero_susfs_add_path(const char *path);
 int mountzero_susfs_add_path_loop(const char *path);
 int mountzero_susfs_add_kstat(const char *path);

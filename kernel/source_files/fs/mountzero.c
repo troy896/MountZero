@@ -332,111 +332,136 @@ EXPORT_SYMBOL(mountzero_get_static_vpath);
 
 #ifdef CONFIG_KSU_SUSFS
 
-/* Bridge: Add SUSFS hidden path */
-/* Called from userspace via IOCTL → bridge.sh → ksu_susfs CLI */
-int mountzero_susfs_add_path(const char *path)
+/* ============================================================
+ * Direct Uname Spoofing — modifies utsname() directly
+ * Bypasses SUSFS supercall limitation for custom values.
+ * Users can spoof release/version and reset to stock anytime.
+ * ============================================================ */
+
+#include <linux/utsname.h>
+#include <linux/semaphore.h>
+
+/* Stock kernel version saved at boot */
+static char mz_stock_release[__NEW_UTS_LEN + 1] = {0};
+static char mz_stock_version[__NEW_UTS_LEN + 1] = {0};
+static bool mz_stock_saved = false;
+
+/* Currently spoofed values (empty = using stock) */
+static char mz_spoofed_release[__NEW_UTS_LEN + 1] = {0};
+static char mz_spoofed_version[__NEW_UTS_LEN + 1] = {0};
+static DEFINE_MUTEX(mz_uname_mutex);
+
+/* Save original kernel version at init */
+static void mz_save_stock_uname(void)
 {
-    /* This function is a no-op in kernel.
-     * Use: ksu_susfs add_sus_path <path> from userspace
-     * or bridge.sh reconcile from metamount.sh */
-    pr_info("MountZero: SUSFS add_path requested for: %s (use ksu_susfs CLI)\n", path ?: "(null)");
+    down_read(&uts_sem);
+    strscpy(mz_stock_release, utsname()->release, sizeof(mz_stock_release));
+    strscpy(mz_stock_version, utsname()->version, sizeof(mz_stock_version));
+    up_read(&uts_sem);
+    mz_stock_saved = true;
+    pr_info("MountZero: Saved stock uname: release='%s', version='%s'\n",
+            mz_stock_release, mz_stock_version);
+}
+
+/* Apply custom uname spoofing */
+int mountzero_do_spoof_uname(const char *release, const char *version)
+{
+    if (!release || !version || !*release || !*version)
+        return -EINVAL;
+
+    mutex_lock(&mz_uname_mutex);
+
+    /* Save stock if not already saved */
+    if (!mz_stock_saved)
+        mz_save_stock_uname();
+
+    /* Apply new values */
+    strscpy(mz_spoofed_release, release, sizeof(mz_spoofed_release));
+    strscpy(mz_spoofed_version, version, sizeof(mz_spoofed_version));
+
+    /* Write to kernel utsname */
+    down_write(&uts_sem);
+    strscpy(utsname()->release, release, sizeof(utsname()->release));
+    strscpy(utsname()->version, version, sizeof(utsname()->version));
+    up_write(&uts_sem);
+
+    mutex_unlock(&mz_uname_mutex);
+
+    pr_info("MountZero: Uname spoofed: release='%s', version='%s'\n",
+            release, version);
     return 0;
 }
-EXPORT_SYMBOL(mountzero_susfs_add_path);
+EXPORT_SYMBOL(mountzero_do_spoof_uname);
 
-/* Bridge: Add SUSFS hidden path with loop detection */
-int mountzero_susfs_add_path_loop(const char *path)
+/* Reset to stock kernel version */
+int mountzero_reset_uname(void)
 {
-    pr_info("MountZero: SUSFS add_path_loop requested for: %s (use ksu_susfs CLI)\n", path ?: "(null)");
+    mutex_lock(&mz_uname_mutex);
+
+    if (!mz_stock_saved) {
+        mutex_unlock(&mz_uname_mutex);
+        return -ENODATA; /* Stock not saved */
+    }
+
+    /* Clear spoofed values */
+    mz_spoofed_release[0] = '\0';
+    mz_spoofed_version[0] = '\0';
+
+    /* Restore stock values */
+    down_write(&uts_sem);
+    strscpy(utsname()->release, mz_stock_release, sizeof(utsname()->release));
+    strscpy(utsname()->version, mz_stock_version, sizeof(utsname()->version));
+    up_write(&uts_sem);
+
+    mutex_unlock(&mz_uname_mutex);
+
+    pr_info("MountZero: Uname reset to stock: release='%s', version='%s'\n",
+            mz_stock_release, mz_stock_version);
     return 0;
 }
-EXPORT_SYMBOL(mountzero_susfs_add_path_loop);
+EXPORT_SYMBOL(mountzero_reset_uname);
 
-/* Bridge: Add SUSFS kstat spoofing */
-int mountzero_susfs_add_kstat(const char *path)
+/* Query current spoof status */
+int mountzero_get_uname_status(char *buf, size_t len)
 {
-    pr_info("MountZero: SUSFS add_kstat requested for: %s (use ksu_susfs CLI)\n", path ?: "(null)");
+    int ret;
+
+    mutex_lock(&mz_uname_mutex);
+
+    if (mz_spoofed_release[0] != '\0') {
+        ret = snprintf(buf, len,
+            "spoofed=1\nrelease=%s\nversion=%s\nstock_release=%s\nstock_version=%s\n",
+            mz_spoofed_release, mz_spoofed_version,
+            mz_stock_saved ? mz_stock_release : "unknown",
+            mz_stock_saved ? mz_stock_version : "unknown");
+    } else {
+        ret = snprintf(buf, len,
+            "spoofed=0\nrelease=%s\nversion=%s\n",
+            mz_stock_saved ? mz_stock_release : utsname()->release,
+            mz_stock_saved ? mz_stock_version : utsname()->version);
+    }
+
+    mutex_unlock(&mz_uname_mutex);
+    return ret;
+}
+EXPORT_SYMBOL(mountzero_get_uname_status);
+
+/* SUSFS pass-through stubs (actual work done by ksu_susfs CLI) */
+int mountzero_susfs_add_path(const char *path) { return 0; }
+int mountzero_susfs_add_path_loop(const char *path) { return 0; }
+int mountzero_susfs_add_kstat(const char *path) { return 0; }
+int mountzero_susfs_update_kstat(const char *path) { return 0; }
+int mountzero_susfs_add_map(const char *path) { return 0; }
+int mountzero_susfs_set_uname(const char *release, const char *version) { return 0; }
+int mountzero_susfs_set_cmdline(const char *path) { return 0; }
+int mountzero_susfs_hide_mounts(bool enable) { return 0; }
+int mountzero_susfs_enable_log(bool enable) { return 0; }
+int mountzero_susfs_enable_avc_log_spoofing(bool enable) { return 0; }
+int mountzero_susfs_get_version(char *buf, size_t len) {
+    if (buf && len > 0) snprintf(buf, len, "v2.1.0");
     return 0;
 }
-EXPORT_SYMBOL(mountzero_susfs_add_kstat);
-
-/* Bridge: Update SUSFS kstat spoofing */
-int mountzero_susfs_update_kstat(const char *path)
-{
-    pr_info("MountZero: SUSFS update_kstat requested for: %s (use ksu_susfs CLI)\n", path ?: "(null)");
-    return 0;
-}
-EXPORT_SYMBOL(mountzero_susfs_update_kstat);
-
-/* Bridge: Add SUSFS maps hiding */
-int mountzero_susfs_add_map(const char *path)
-{
-    pr_info("MountZero: SUSFS add_map requested for: %s (use ksu_susfs CLI)\n", path ?: "(null)");
-    return 0;
-}
-EXPORT_SYMBOL(mountzero_susfs_add_map);
-
-/* Bridge: Set uname spoofing */
-int mountzero_susfs_set_uname(const char *release, const char *version)
-{
-    pr_info("MountZero: SUSFS set_uname requested (use ksu_susfs CLI)\n");
-    return 0;
-}
-EXPORT_SYMBOL(mountzero_susfs_set_uname);
-
-/* Bridge: Set cmdline spoofing */
-int mountzero_susfs_set_cmdline(const char *path)
-{
-    pr_info("MountZero: SUSFS set_cmdline requested (use ksu_susfs CLI)\n");
-    return 0;
-}
-EXPORT_SYMBOL(mountzero_susfs_set_cmdline);
-
-/* Bridge: Hide SUSFS mounts from non-su processes */
-int mountzero_susfs_hide_mounts(bool enable)
-{
-#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
-    pr_info("MountZero: SUSFS mount hiding %s (use ksu_susfs CLI)\n", enable ? "enabled" : "disabled");
-    return 0;
-#else
-    return -ENOSYS;
-#endif
-}
-EXPORT_SYMBOL(mountzero_susfs_hide_mounts);
-
-/* Bridge: Enable/disable SUSFS logging */
-int mountzero_susfs_enable_log(bool enable)
-{
-#ifdef CONFIG_KSU_SUSFS_ENABLE_LOG
-    pr_info("MountZero: SUSFS logging %s (use ksu_susfs CLI)\n", enable ? "enabled" : "disabled");
-    return 0;
-#else
-    return -ENOSYS;
-#endif
-}
-EXPORT_SYMBOL(mountzero_susfs_enable_log);
-
-/* Bridge: Enable AVC log spoofing */
-int mountzero_susfs_enable_avc_log_spoofing(bool enable)
-{
-    pr_info("MountZero: SUSFS AVC log spoofing %s (use ksu_susfs CLI)\n", enable ? "enabled" : "disabled");
-    return 0;
-}
-EXPORT_SYMBOL(mountzero_susfs_enable_avc_log_spoofing);
-
-/* Query SUSFS version */
-int mountzero_susfs_get_version(char *buf, size_t len)
-{
-    pr_info("MountZero: SUSFS version query (use ksu_susfs CLI)\n");
-    if (buf && len > 0)
-        snprintf(buf, len, "SUSFS (kernel)");
-    return 0;
-}
-EXPORT_SYMBOL(mountzero_susfs_get_version);
-
-/* Query SUSFS features */
-int mountzero_susfs_get_features(char *buf, size_t len)
-{
+int mountzero_susfs_get_features(char *buf, size_t len) {
     if (buf && len > 0) {
         snprintf(buf, len,
             "sus_path:%d sus_mount:%d sus_kstat:%d spoof_uname:%d "
@@ -451,6 +476,17 @@ int mountzero_susfs_get_features(char *buf, size_t len)
     }
     return 0;
 }
+EXPORT_SYMBOL(mountzero_susfs_add_path);
+EXPORT_SYMBOL(mountzero_susfs_add_path_loop);
+EXPORT_SYMBOL(mountzero_susfs_add_kstat);
+EXPORT_SYMBOL(mountzero_susfs_update_kstat);
+EXPORT_SYMBOL(mountzero_susfs_add_map);
+EXPORT_SYMBOL(mountzero_susfs_set_uname);
+EXPORT_SYMBOL(mountzero_susfs_set_cmdline);
+EXPORT_SYMBOL(mountzero_susfs_hide_mounts);
+EXPORT_SYMBOL(mountzero_susfs_enable_log);
+EXPORT_SYMBOL(mountzero_susfs_enable_avc_log_spoofing);
+EXPORT_SYMBOL(mountzero_susfs_get_version);
 EXPORT_SYMBOL(mountzero_susfs_get_features);
 
 #endif /* CONFIG_KSU_SUSFS */
@@ -1201,7 +1237,40 @@ static long mountzero_ioctl(struct file *filp, unsigned int cmd, unsigned long a
             return -EFAULT;
         uname_info.kernel_release[sizeof(uname_info.kernel_release) - 1] = '\0';
         uname_info.kernel_version[sizeof(uname_info.kernel_version) - 1] = '\0';
-        return mountzero_susfs_set_uname(uname_info.kernel_release, uname_info.kernel_version);
+        return mountzero_do_spoof_uname(uname_info.kernel_release, uname_info.kernel_version);
+    }
+
+    case MOUNTZERO_IOC_RESET_UNAME: {
+        return mountzero_reset_uname();
+    }
+
+    case MOUNTZERO_IOC_GET_UNAME_STATUS: {
+        struct mz_uname_status status;
+        char buf[256];
+        int len;
+        memset(&status, 0, sizeof(status));
+        len = mountzero_get_uname_status(buf, sizeof(buf));
+        /* Parse key=value pairs from buf */
+        if (len > 0) {
+            char *p = buf;
+            while (p && *p) {
+                if (strncmp(p, "spoofed=", 8) == 0)
+                    status.spoofed = simple_strtol(p + 8, NULL, 10);
+                else if (strncmp(p, "release=", 8) == 0)
+                    strncpy(status.release, p + 8, sizeof(status.release) - 1);
+                else if (strncmp(p, "version=", 8) == 0)
+                    strncpy(status.version, p + 8, sizeof(status.version) - 1);
+                else if (strncmp(p, "stock_release=", 14) == 0)
+                    strncpy(status.stock_release, p + 14, sizeof(status.stock_release) - 1);
+                else if (strncmp(p, "stock_version=", 14) == 0)
+                    strncpy(status.stock_version, p + 14, sizeof(status.stock_version) - 1);
+                p = strchr(p, '\n');
+                if (p) p++;
+            }
+        }
+        if (copy_to_user((void __user *)arg, &status, sizeof(status)))
+            return -EFAULT;
+        return 0;
     }
 #endif
 
@@ -1280,6 +1349,11 @@ int __init mountzero_init(void)
             mz_guard_kobj = NULL;
         }
     }
+
+    /* Save stock kernel version for uname reset */
+#ifdef CONFIG_KSU_SUSFS
+    mz_save_stock_uname();
+#endif
 
     pr_info("MountZero: Device registered at /dev/mountzero (minor=%d)\n",
             mountzero_misc.minor);
