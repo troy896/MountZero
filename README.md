@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="https://github.com/mafiadan6/MountZero/releases"><img src="https://img.shields.io/badge/Download-v2.0.0-blue?style=for-the-badge&logo=github" alt="Download"></a>
-  <a href="https://t.me/mountzerozvfs)"><img src="https://img.shields.io/badge/Telegram-@mastermindszs-2CA5E0?style=for-the-badge&logo=telegram" alt="Telegram"></a>
+  <a href="https://t.me/mountzerozvfs"><img src="https://img.shields.io/badge/Telegram-@mountzerozvfs-2CA5E0?style=for-the-badge&logo=telegram" alt="Telegram"></a>
   <a href="https://github.com/mafiadan6/MountZero/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-GPL--2.0-green?style=for-the-badge" alt="License"></a>
 </p>
 
