@@ -89,7 +89,7 @@ struct mz_vfs_inject_ctx {
     int injected;
 };
 
-static int mz_vfs_inject_callback(struct dir_context *ctx, const char *name,
+static bool mz_vfs_inject_callback(struct dir_context *ctx, const char *name,
                                    int namlen, loff_t offset, u64 ino, unsigned int d_type)
 {
     struct mz_vfs_inject_ctx *ic = container_of(ctx, struct mz_vfs_inject_ctx, ctx);
