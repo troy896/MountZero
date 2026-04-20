@@ -48,7 +48,6 @@
 #include <linux/susfs_def.h>
 #endif
 
-#define MOUNTZERO_VERSION "2.0.0-MZ"
 #define MOUNTZERO_HASH_BITS 10
 #define MZ_BLOOM_BITS 8192
 #define MZ_BLOOM_MASK (MZ_BLOOM_BITS - 1)
