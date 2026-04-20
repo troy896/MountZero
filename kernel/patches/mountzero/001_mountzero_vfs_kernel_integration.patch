@@ -1,8 +1,0 @@
-This patch integrates MountZero VFS into the kernel tree.
-Apply after SUSFS v2.1.0 patches.
-
-Steps:
-1. Copy source_files/ to kernel tree
-2. Update fs/Makefile: obj-$(CONFIG_MOUNTZERO) += mountzero.o mountzero_vfs.o
-3. Update fs/Kconfig: Add CONFIG_MOUNTZERO entry
-4. Hook into fs/namei.c: mountzero_vfs_getname_hook()

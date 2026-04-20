@@ -1,9 +1,0 @@
-diff --git a/fs/Makefile b/fs/Makefile
---- a/fs/Makefile
-+++ b/fs/Makefile
-@@ -16,6 +16,7 @@ obj-$(CONFIG_PROC_FS)		+= proc/
- obj-$(CONFIG_MISC_FILESYSTEMS)	+= misc/
- obj-$(CONFIG_NETWORK_FILESYSTEMS) += network/
- obj-$(CONFIG_NLS)		+= nls/
-+obj-$(CONFIG_MOUNTZERO)		+= mountzero.o mountzero_vfs.o
- 
