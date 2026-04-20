@@ -698,7 +698,7 @@ struct mz_scan_callback_data {
     const char *partition;  /* "system", "vendor", etc. or NULL for custom */
 };
 
-static int mz_scan_partition_callback(struct dir_context *ctx, const char *name,
+static bool mz_scan_partition_callback(struct dir_context *ctx, const char *name,
                                        int namlen, loff_t offset, u64 ino, unsigned int d_type)
 {
     struct mz_scan_callback_data *cb = container_of(ctx, struct mz_scan_callback_data, ctx);
@@ -707,7 +707,7 @@ static int mz_scan_partition_callback(struct dir_context *ctx, const char *name,
 
     /* Skip . and .. */
     if (name[0] == '.' && (namlen == 1 || (namlen == 2 && name[1] == '.')))
-        return 0;
+        return false;
 
     /* Build paths based on partition type */
     if (cb->partition) {
@@ -727,7 +727,7 @@ static int mz_scan_partition_callback(struct dir_context *ctx, const char *name,
 
         sub_filp = filp_open(real_path, O_RDONLY | O_DIRECTORY, 0);
         if (IS_ERR(sub_filp))
-            return 0;
+            return false;
 
         /* Setup sub-callback with proper initialization */
         struct mz_scan_callback_data sub_cb = {
@@ -755,7 +755,7 @@ static int mz_scan_partition_callback(struct dir_context *ctx, const char *name,
         }
     }
 
-    return 0;
+    return false;
 }
 
 /* Scan a specific partition directory within a module */
@@ -863,7 +863,7 @@ static const char * const standard_partitions[] = {
 };
 
 /* Callback for iterating through module directories in /data/adb/modules/ */
-static int mz_scan_adb_modules_callback(struct dir_context *ctx, const char *name,
+static bool mz_scan_adb_modules_callback(struct dir_context *ctx, const char *name,
                                          int namlen, loff_t offset, u64 ino, unsigned int d_type)
 {
     char module_id[256];
@@ -871,17 +871,17 @@ static int mz_scan_adb_modules_callback(struct dir_context *ctx, const char *nam
     int i;
 
     if (name[0] == '.' && (namlen == 1 || (namlen == 2 && name[1] == '.')))
-        return 0;
+        return false;
 
     if (d_type != DT_DIR && d_type != DT_UNKNOWN)
-        return 0;
+        return false;
 
     snprintf(module_id, sizeof(module_id), "%.*s", namlen, name);
     snprintf(module_base, sizeof(module_base), "/data/adb/modules/%s", module_id);
 
     if (!mz_is_module_enabled(module_id)) {
         pr_info("MountZero: Skipping disabled module: %s\n", module_id);
-        return 0;
+        return false;
     }
 
     pr_info("MountZero: Scanning module: %s\n", module_id);
@@ -891,21 +891,21 @@ static int mz_scan_adb_modules_callback(struct dir_context *ctx, const char *nam
         mz_scan_module_partition(module_id, module_base, standard_partitions[i]);
     }
 
-    return 0;
+    return false;
 }
 
 /* Callback for iterating through custom modules in /data/local/ */
-static int mz_scan_local_modules_callback(struct dir_context *ctx, const char *name,
+static bool mz_scan_local_modules_callback(struct dir_context *ctx, const char *name,
                                            int namlen, loff_t offset, u64 ino, unsigned int d_type)
 {
     char module_id[256];
     char module_base[512];
 
     if (name[0] == '.' && (namlen == 1 || (namlen == 2 && name[1] == '.')))
-        return 0;
+        return false;
 
     if (d_type != DT_DIR && d_type != DT_UNKNOWN)
-        return 0;
+        return false;
 
     snprintf(module_id, sizeof(module_id), "%.*s", namlen, name);
     snprintf(module_base, sizeof(module_base), "/data/local/%s", module_id);
@@ -915,7 +915,7 @@ static int mz_scan_local_modules_callback(struct dir_context *ctx, const char *n
     /* Scan as custom structure (maps to /system/) */
     mz_scan_custom_module(module_id, module_base);
 
-    return 0;
+    return false;
 }
 
 static int wait_for_data_mount(void)
