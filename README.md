@@ -12,9 +12,22 @@ Your module files appear as regular system files.
 
 ---
 
+## Credits
+
+This project builds on the incredible work from:
+
+- **Super-Builders** (https://github.com/Enginex0/Super-Builders) - GKI kernel patches with SUSFS + ZeroMount
+- **SUSFS** by simonpunk - the hiding framework this project uses
+- **KernelSU** - root framework
+- **ZeroMount** - VFS architecture inspiration
+
+Thank you to the community for making this possible!
+
+---
+
 ## Requirements
 
-- Kernel with **SUSFS** already integrated
+- Kernel with **SUSFS** already integrated (`CONFIG_KSU_SUSFS=y`)
 - **KernelSU** or **ReSukiSU**
 - Any Android kernel: **4.14, 5.4, 5.10, 5.15, 6.1, 6.x**
 
@@ -32,6 +45,11 @@ project/kernel/mountzero_vfs.c →  /fs/
 project/kernel/mountzero.h    →  /include/linux/
 project/kernel/mountzero_def.h → /include/linux/
 project/kernel/mountzero_vfs.h → /include/linux/
+```
+
+Or run the auto-script:
+```bash
+./project/integrate.sh
 ```
 
 ### Step 2: Edit Build Files
@@ -56,6 +74,7 @@ result = mountzero_vfs_getname_hook(result);
 **File: your defconfig**
 ```
 CONFIG_MOUNTZERO=y
+CONFIG_KSU_SUSFS=y
 ```
 
 ### Step 3: Build, Flash, Install
@@ -106,6 +125,7 @@ mzctl susfs set-uname '5.15.196-g5a9c3d' '#1 SMP'
 | Build error | Added both mountzero.c AND mountzero_vfs.c? |
 | Bootloop | Hold Volume Up+Down to skip (guard protects after 3 tries) |
 | WebUI missing | Install module.zip via KernelSU |
+| SUSFS error | Ensure CONFIG_KSU_SUSFS=y in kernel |
 
 ---
 
@@ -118,3 +138,9 @@ GPL v3.0 - See LICENSE file
 ## Version
 
 v2.0.3
+
+---
+
+## Support
+
+Telegram: @mountzerozvfs
