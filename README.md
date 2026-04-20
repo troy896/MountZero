@@ -4,6 +4,12 @@
 
 ---
 
+## Preview
+
+See how the manager works: **[preview.mp4](./preview.mp4)**
+
+---
+
 ## What is this?
 
 MountZero lets you use KernelSU modules without bind mounts. No entries in `/proc/mounts`, no traces.
