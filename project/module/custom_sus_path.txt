@@ -1,0 +1,15 @@
+# MountZero VFS - Custom SUSFS Paths to Hide
+# One path per line, lines starting with # are comments
+
+# KSU detection paths
+/data/adb/ksu
+/data/adb/ap
+/data/adb/modules
+/data/adb/modules_update
+
+# Common root detection paths
+/data/local/tmp
+
+# Magisk paths
+/sbin/.magisk
+/data/cache/magisk.log

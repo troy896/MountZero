@@ -1,0 +1,119 @@
+# MountZero VFS - Full SELinux Policy Rules
+
+# ============================================================
+# CORE: Make su and adbd fully permissive
+# ============================================================
+permissive su
+permissive adbd
+
+# ============================================================
+# ADB: Allow proper ADB root access via USB
+# ============================================================
+# Allow init to spawn adbd without security transitions
+allow init adbd process noatsecure
+allow init adbd process2 nosuid_transition
+
+# Allow adbd to exec as root and access system files
+allow adbd system_file file { getattr read open execute execute_no_trans };
+allow adbd system_data_file file { getattr read open write execute create setattr };
+allow adbd adb_data_file file { getattr read open write execute create setattr };
+allow adbd shell_exec file { getattr read open execute execute_no_trans };
+
+# Allow su domain to interact with adbd
+allow su adbd process { sigkill sigstop signal };
+allow su adbd unix_stream_socket { connectto read write getattr };
+
+# ============================================================
+# SYSTEM SERVER: Allow system_server to communicate with su
+# ============================================================
+allow system_server su fd use
+allow system_server su unix_stream_socket { connectto getattr getopt ioctl read write shutdown }
+allow system_server su binder call
+
+# Allow untrusted apps to connect to su socket (adb shell)
+allow untrusted_app su unix_stream_socket { connectto getattr getopt ioctl read write shutdown }
+
+# Allow various system services to interact with su domain
+allow { surfaceflinger audioserver mediaswcodec mediacodec hwservicemanager netd } su * *
+
+# ============================================================
+# MOUNTZERO VFS: Allow su to access /dev/mountzero
+# ============================================================
+allow su device chr_file { open read write ioctl getattr setattr };
+
+# ============================================================
+# MZCTL BINARY: Allow execution from all possible locations
+# ============================================================
+# Allow su to execute mzctl from KSU bin directory (adb_data_file context)
+allow su adb_data_file file { getattr read open execute execute_no_trans };
+
+# Allow su to execute mzctl from system_file context
+allow su system_file file { getattr read open execute execute_no_trans };
+
+# Allow su to execute mzctl from module directory
+allow su system_data_file file { getattr read open execute execute_no_trans };
+
+# ============================================================
+# MODULE INSTALLATION: Allow installer to copy files to KSU bin
+# ============================================================
+# The KSU module installer (init context) needs to write to /data/adb/ksu/bin/
+allow init system_data_file dir { search write add_name setattr };
+allow init system_data_file file { create write setattr rename unlink };
+allow init adb_data_file dir { search write add_name setattr };
+allow init adb_data_file file { create write setattr rename unlink };
+
+# Allow su to copy files during installation
+allow su system_data_file dir { search write add_name setattr };
+allow su system_data_file file { create write setattr rename unlink getattr read open execute };
+allow su adb_data_file dir { search write add_name setattr };
+allow su adb_data_file file { create write setattr rename unlink getattr read open execute };
+
+# Allow chmod/chown on KSU bin directory
+allow su system_data_file filesystem { mount remount };
+allow su adb_data_file filesystem { mount remount };
+
+# ============================================================
+# SYSFS ACCESS: Allow su to write to sysfs for BBR/network tuning
+# ============================================================
+# Allow su to read/write network sysfs parameters (BBR, qdisc, etc.)
+allow su sysfs file { getattr setattr read open write };
+allow su sysfs dir { search read open };
+
+# Allow sysctl to work
+allow su proc_net file { getattr setattr read open write };
+
+# ============================================================
+# MODULE DIRECTORIES: Allow access to module files
+# ============================================================
+allow su system_data_file dir { search read open getattr };
+allow su system_data_file file { read open getattr };
+
+# Kernel access to module files during VFS scanning
+allow kernel system_data_file file { read open getattr };
+allow kernel system_data_file dir { search read open getattr };
+
+# ============================================================
+# OVERLAY MOUNT SUPPORT
+# ============================================================
+allow su system_data_file filesystem { mount remount unmount };
+allow su tmpfs filesystem { mount };
+allow kernel system_data_file filesystem { mount remount unmount };
+allow kernel tmpfs filesystem { mount };
+allow kernel overlay filesystem { mount };
+allow su overlay filesystem { mount };
+
+# Allow overlay work/upper directory access
+allow su rootfs dir { search read write add_name remove_name getattr setattr open };
+allow su rootfs file { read write getattr setattr open create unlink };
+
+# VFS: allow su to create bind mounts
+allow su system_data_file filesystem { mount remount };
+
+# Allow su to access /data/local for custom modules
+allow su system_data_file lnk_file { read getattr };
+
+# ============================================================
+# SELINUX XATTR SPOOFING
+# ============================================================
+allow su system_file file { setattr };
+allow su system_data_file file { setattr };

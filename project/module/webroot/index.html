@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>MountZero VFS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Animated background -->
+<div class="bg-grid"></div>
+<div class="bg-orb bg-orb-1"></div>
+<div class="bg-orb bg-orb-2"></div>
+<div class="bg-orb bg-orb-3"></div>
+
+<!-- Header -->
+<header>
+  <div class="header-left">
+<div class="logo-container">
+    <img src="assets/logo.png" alt="MountZero Logo" class="logo-img">
+  </div>
+    <div class="header-title">
+      <span class="title-main">MountZero</span>
+      <span class="title-sub">VFS Manager v2.0.3</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="dev-name" style="cursor:default;color:var(--text-secondary);font-size:12px;">
+      <svg class="tg-icon" viewBox="0 0 20 20" fill="none" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">
+        <path d="M17.5 3.5L2.5 9l5 2 7.5-5.5-5 6.5 5.5 3L17.5 3.5z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
+        <path d="M7.5 11L8 16l2.5-2.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      @bitcockiii
+    </div>
+    <div id="status-badge" class="badge pulse">Loading...</div>
+  </div>
+</header>
+
+<!-- Tab Navigation -->
+<nav class="tab-nav">
+  <div class="tab-track">
+    <button class="tab active" data-tab="status">
+      <svg class="tab-icon" viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M10 6v4l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span>Status</span>
+    </button>
+    <button class="tab" data-tab="modules">
+      <svg class="tab-icon" viewBox="0 0 20 20" fill="none">
+        <rect x="3" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="11" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="3" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/>
+        <rect x="11" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+      <span>Modules</span>
+    </button>
+    <button class="tab" data-tab="rules">
+      <svg class="tab-icon" viewBox="0 0 20 20" fill="none">
+        <path d="M4 10h12M4 6h12M4 14h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="15" cy="14" r="2" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+      <span>Rules</span>
+    </button>
+    <button class="tab" data-tab="config">
+      <svg class="tab-icon" viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M10 3v2M10 15v2M3 10h2M15 10h2M5.2 5.2l1.4 1.4M13.4 13.4l1.4 1.4M5.2 14.8l1.4-1.4M13.4 6.6l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span>Config</span>
+    </button>
+    <button class="tab" data-tab="guard">
+      <svg class="tab-icon" viewBox="0 0 20 20" fill="none">
+        <path d="M10 3L4 6v5c0 3.5 2.5 6.5 6 7.5 3.5-1 6-4 6-7.5V6L10 3z" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M7 10l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Guard</span>
+    </button>
+    <button class="tab" data-tab="hiding">
+      <svg class="tab-icon" viewBox="0 0 20 20" fill="none">
+        <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM7 10l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M6 6h.01M14 6h.01M6 14h.01M14 14h.01" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <span>Hiding</span>
+    </button>
+    <button class="tab" data-tab="tools">
+      <svg class="tab-icon" viewBox="0 0 20 20" fill="none">
+        <path d="M14.5 3.5L12 6l2 2 2.5-2.5C17.3 6.7 17 8.5 16 10l-8 8-3-3 8-8c1.5-1 3.3-1.3 4.5-.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+      </svg>
+      <span>Tools</span>
+    </button>
+  </div>
+</nav>
+
+<main>
+
+  <!-- ==================== STATUS TAB ==================== -->
+  <section id="tab-status" class="tab-content active">
+
+    <!-- Big stat cards row -->
+    <div class="stat-row">
+      <div class="stat-card stat-green">
+        <div class="stat-glow"></div>
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="stat-value" id="engine-rules">0</div>
+        <div class="stat-label">VFS Rules</div>
+      </div>
+      <div class="stat-card stat-blue">
+        <div class="stat-glow"></div>
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="stat-value" id="engine-hidden">0</div>
+        <div class="stat-label">SUSFS Paths</div>
+      </div>
+      <div class="stat-card stat-cyan">
+        <div class="stat-glow"></div>
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="stat-value" id="engine-maps">0</div>
+        <div class="stat-label">SUSFS Maps</div>
+      </div>
+      <div class="stat-card stat-purple">
+        <div class="stat-glow"></div>
+        <div class="stat-icon">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <div class="stat-value" id="engine-uids">0</div>
+        <div class="stat-label">Blocked UIDs</div>
+      </div>
+    </div>
+
+    <!-- VFS Engine Status -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon green">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5"/></svg>
+        </div>
+        <h2>GHOST VFS CORE</h2>
+        <div class="card-badge" id="vfs-status-pill">--</div>
+      </div>
+      <div class="info-grid">
+        <div class="info-tile">
+          <span class="tile-label">VFS Status</span>
+          <span class="tile-value" id="engine-status">--</span>
+        </div>
+        <div class="info-tile">
+          <span class="tile-label">SUSFS Version</span>
+          <span class="tile-value neon-blue" id="engine-driver">--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Capabilities -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon cyan">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h2>Capabilities</h2>
+      </div>
+      <div class="info-grid">
+        <div class="info-tile">
+          <span class="tile-label">VFS Driver</span>
+          <span class="tile-value" id="cap-vfs">--</span>
+        </div>
+        <div class="info-tile">
+          <span class="tile-label">SUSFS</span>
+          <span class="tile-value" id="cap-susfs">--</span>
+        </div>
+        <div class="info-tile">
+          <span class="tile-label">OverlayFS</span>
+          <span class="tile-value" id="cap-overlay">--</span>
+        </div>
+        <div class="info-tile">
+          <span class="tile-label">EROFS</span>
+          <span class="tile-value" id="cap-erofs">--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Info -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon blue">
+          <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 10h6M10 7v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <h2>System Info</h2>
+      </div>
+      <div class="sys-grid">
+        <div class="sys-item">
+          <div class="sys-label">Kernel</div>
+          <div class="sys-value mono" id="info-kernel">--</div>
+        </div>
+        <div class="sys-item">
+          <div class="sys-label">Android</div>
+          <div class="sys-value" id="info-android">--</div>
+        </div>
+        <div class="sys-item">
+          <div class="sys-label">Device</div>
+          <div class="sys-value" id="info-device">--</div>
+        </div>
+        <div class="sys-item">
+          <div class="sys-label">Uptime</div>
+          <div class="sys-value neon-green" id="info-uptime">--</div>
+        </div>
+        <div class="sys-item">
+          <div class="sys-label">SELinux</div>
+          <div class="sys-value" id="info-selinux">--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="action-row">
+      <button id="btn-refresh" class="btn btn-primary">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M4 4v5h5M16 16v-5h-5M4 9A7 7 0 0114.9 6M16 11a7 7 0 01-10.9 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Refresh Status
+      </button>
+      <button id="btn-enable-vfs" class="btn btn-success">
+        <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M10 7v3l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Enable VFS
+      </button>
+      <button id="btn-disable-vfs" class="btn btn-danger">
+        <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 8l4 4M12 8l-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        Disable VFS
+      </button>
+    </div>
+  </section>
+
+  <!-- ==================== MODULES TAB ==================== -->
+  <section id="tab-modules" class="tab-content">
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon blue">
+          <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+        </div>
+        <h2>Installed Modules</h2>
+      </div>
+      <div class="search-wrapper">
+        <svg class="search-icon" viewBox="0 0 20 20" fill="none"><circle cx="8" cy="8" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <input type="text" id="module-search" class="search-input" placeholder="Search modules...">
+      </div>
+      <div id="module-list" class="list-container"></div>
+    </div>
+  </section>
+
+  <!-- ==================== RULES TAB ==================== -->
+  <section id="tab-rules" class="tab-content">
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon green">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M10 5v10M5 10h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <h2>Add VFS Rule</h2>
+      </div>
+      <div class="form-stack">
+        <div class="input-group">
+          <label class="input-label">Virtual Path</label>
+          <input type="text" id="rule-virt" class="neon-input" placeholder="/system/bin/su">
+        </div>
+        <div class="input-group">
+          <label class="input-label">Real Path</label>
+          <input type="text" id="rule-real" class="neon-input" placeholder="/data/adb/modules/X/system/bin/su">
+        </div>
+        <button id="btn-add-rule" class="btn btn-success full-width">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M10 5v10M5 10h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Add Rule
+        </button>
+      </div>
+    </div>
+
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon green">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M4 10h12M4 6h12M4 14h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <h2>Active Rules</h2>
+      </div>
+      <div id="rule-list" class="list-container"></div>
+      <div style="margin-top:12px">
+        <button id="btn-clear-rules" class="btn btn-danger full-width">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M4 7h12M6 7V5a1 1 0 011-1h6a1 1 0 011 1v2m2 0l-1 9a1 1 0 01-1 1H7a1 1 0 01-1-1L5 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Clear All Rules
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== CONFIG TAB ==================== -->
+  <section id="tab-config" class="tab-content">
+
+    <!-- Mount Settings -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon cyan">
+          <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M10 3v2M10 15v2M3 10h2M15 10h2M5.2 5.2l1.4 1.4M13.4 13.4l1.4 1.4M5.2 14.8l1.4-1.4M13.4 6.6l1.4-1.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <h2>Mount Settings</h2>
+      </div>
+      <div class="form-stack">
+        <div class="input-group">
+          <label class="input-label">Mount Engine</label>
+          <select id="cfg-mount-engine" class="neon-input neon-select">
+            <option value="vfs">VFS (MountZero)</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label class="input-label">Extra Partitions</label>
+          <input type="text" id="cfg-partitions" class="neon-input" placeholder="product,system_ext,vendor">
+        </div>
+      </div>
+    </div>
+
+    <!-- SUSFS Bridge -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon blue">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M3 10h14M3 6l4 4-4 4M17 6l-4 4 4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h2>Uname Spoofing</h2>
+      </div>
+      <div class="form-stack">
+        <div class="input-group">
+          <label class="input-label">Spoof Uname Release</label>
+          <input type="text" id="cfg-uname-release" class="neon-input" placeholder="4.14.113-g9f6a47a">
+        </div>
+        <div class="input-group">
+          <label class="input-label">Spoof Uname Version</label>
+          <input type="text" id="cfg-uname-version" class="neon-input" placeholder="#1 SMP PREEMPT Mon Oct 6 16:50:48 UTC 2025">
+        </div>
+        <label class="toggle-row">
+          <span class="toggle-label">Auto-spoof at boot</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-uname-autospoof">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <div id="uname-status-display" class="info-card">
+          <div class="info-row"><span class="info-label">Status:</span><span id="uname-status-text" class="info-value">Loading...</span></div>
+          <div class="info-row"><span class="info-label">Release:</span><span id="uname-release-display" class="info-value">--</span></div>
+          <div class="info-row"><span class="info-label">Version:</span><span id="uname-version-display" class="info-value">--</span></div>
+        </div>
+        <div class="btn-row">
+          <button id="btn-apply-uname" class="btn btn-success">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M4 4v5h5M16 16v-5h-5M4 9A7 7 0 0114.9 6M16 11a7 7 0 01-10.9 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Apply Uname
+          </button>
+          <button id="btn-reset-uname" class="btn btn-danger">
+            <svg viewBox="0 0 20 20" fill="none"><path d="M4 4v5h5M16 16v-5h-5M4 9A7 7 0 0114.9 6M16 11a7 7 0 01-10.9 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Reset to Stock
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADB Root -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon purple">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M10 3a7 7 0 100 14A7 7 0 0010 3zM7 10l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h2>ADB Root</h2>
+      </div>
+      <div class="form-stack">
+        <label class="toggle-row">
+          <span class="toggle-label">Enable ADB root access</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-adb-root">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <button id="btn-apply-adb" class="btn btn-success full-width">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M16.707 5.293a1 1 0 00-1.414 0L8 12.586 4.707 9.293a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8a1 1 0 000-1.414z" stroke="currentColor" stroke-width="0.5" fill="currentColor"/></svg>
+          Apply ADB Settings
+        </button>
+      </div>
+    </div>
+
+    <!-- Save / Reset -->
+    <div class="action-row">
+      <button id="btn-save-config" class="btn btn-primary" style="flex:1">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M5 4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1V8l-4-4H5zm4 9v-4m-2 2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Save Config
+      </button>
+      <button id="btn-reset-config" class="btn btn-secondary" style="flex:1">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M4 4v5h5M16 16v-5h-5M4 9A7 7 0 0114.9 6M16 11a7 7 0 01-10.9 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Reset Defaults
+      </button>
+    </div>
+
+  </section>
+
+  <!-- ==================== GUARD TAB ==================== -->
+  <section id="tab-guard" class="tab-content">
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon green">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M10 3L4 6v5c0 3.5 2.5 6.5 6 7.5 3.5-1 6-4 6-7.5V6L10 3z" stroke="currentColor" stroke-width="1.5"/><path d="M7 10l2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h2>Bootloop Guard</h2>
+      </div>
+      <div class="guard-display">
+        <div class="guard-ring">
+          <svg viewBox="0 0 120 120" class="guard-svg">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(0,245,255,0.1)" stroke-width="8"/>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="url(#guardGrad)" stroke-width="8" stroke-linecap="round" stroke-dasharray="314" id="guard-ring-arc" style="stroke-dashoffset:235"/>
+            <defs>
+              <linearGradient id="guardGrad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#00f5ff"/>
+                <stop offset="100%" stop-color="#00ff88"/>
+              </linearGradient>
+            </defs>
+          </svg>
+          <div class="guard-ring-text">
+            <span class="guard-ring-val" id="guard-count">0</span>
+            <span class="guard-ring-sub">boots</span>
+          </div>
+        </div>
+        <div class="guard-info">
+          <div class="info-tile" style="margin-bottom:8px">
+            <span class="tile-label">Threshold</span>
+            <span class="tile-value neon-blue" id="guard-threshold">3</span>
+          </div>
+          <div class="info-tile">
+            <span class="tile-label">Status</span>
+            <span class="tile-value neon-green" id="guard-status">OK</span>
+          </div>
+        </div>
+      </div>
+      <div class="form-stack" style="margin-top:16px">
+        <div class="input-group">
+          <label class="input-label">Set New Threshold</label>
+          <input type="number" id="guard-new-threshold" class="neon-input" min="1" max="10" value="3">
+        </div>
+      </div>
+      <div class="action-row" style="margin-top:12px">
+        <button id="btn-check-guard" class="btn btn-primary" style="flex:1">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Check Guard
+        </button>
+        <button id="btn-recover-guard" class="btn btn-success" style="flex:1">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M4 4v5h5M16 16v-5h-5M4 9A7 7 0 0114.9 6M16 11a7 7 0 01-10.9 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Reset Guard
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== HIDING TAB ==================== -->
+  <section id="tab-hiding" class="tab-content">
+
+    <!-- GHOST Hiding Section -->
+    <div class="glass-card">
+      <div class="card-header">
+        <h2>👻 GHOST Core Hiding</h2>
+        <div class="card-badge" id="hiding-status-pill">--</div>
+      </div>
+      <div class="form-stack">
+        <label class="toggle-row">
+          <span class="toggle-label">Hide Zygisk module injections</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-hide-injections">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Hide /data/local/tmp contents</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-hide-tmp">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Hide Zygisk module names</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-hide-zygisk-modules">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Hide SUSFS mounts from non-root</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-hide-sus-mounts">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Spoof AVC denial logs</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-avc-spoof">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Spoof cmdline / bootconfig</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-cmdline-spoof">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Spoof Android system properties</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-prop-spoof">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Hide non-standard /sdcard paths</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-hide-sdcard">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Hide /sdcard/Android data</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-hide-sdcard-android">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Kernel umount support</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-kernel-umount">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Uname spoofing</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-uname-spoof">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">SELinux context spoofing</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-selinux">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Hide module .img files</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-hide-modules-img">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Hide /sdcard/Android/data per-app</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-hide-android-data">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Hide module injection .so files</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-hide-module-injections">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Auto-scan Zygisk module .so files</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-zygisk-auto-scan">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Hide recovery/addon paths</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-hide-recovery">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Clean ..5.u.S leftovers</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-cleanup-leftovers">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Real-time /sdcard watcher (inotifyd)</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-inotify-watcher">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Force SELinux Enforcing</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="cfg-selinux-enforce">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <label class="toggle-row">
+          <span class="toggle-label">Verified Boot Hash (leave empty for auto)</span>
+          <input type="text" id="cfg-vbh" class="neon-input" placeholder="auto-detect or paste hash">
+        </label>
+        <button id="btn-apply-hiding" class="btn btn-success full-width">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M4 4v5h5M16 16v-5h-5M4 9A7 7 0 0114.9 6M16 11a7 7 0 01-10.9 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Apply Hiding Config
+        </button>
+      </div>
+    </div>
+
+    <!-- Default Hiding List -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon cyan">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M4 10h12M4 6h12M4 14h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <h2>Default Hiding List</h2>
+      </div>
+      <div class="hiding-list-section">
+        <div class="hiding-list-title">
+          <svg viewBox="0 0 20 20" fill="none" width="14" height="14"><path d="M3 10h14M3 6h12M3 14h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Paths Hidden by Default</span>
+        </div>
+        <div class="hiding-list" id="default-paths-list">
+          <div class="hiding-item"><span class="hiding-path">/data/adb/ksu</span><span class="hiding-tag">KSU</span></div>
+          <div class="hiding-item"><span class="hiding-path">/data/adb/ap</span><span class="hiding-tag">APatch</span></div>
+          <div class="hiding-item"><span class="hiding-path">/data/adb/modules</span><span class="hiding-tag">Modules</span></div>
+          <div class="hiding-item"><span class="hiding-path">/data/adb/modules_update</span><span class="hiding-tag">Modules</span></div>
+          <div class="hiding-item"><span class="hiding-path">/sbin/.magisk</span><span class="hiding-tag">Magisk</span></div>
+          <div class="hiding-item"><span class="hiding-path">/data/cache/magisk.log</span><span class="hiding-tag">Magisk</span></div>
+          <div class="hiding-item"><span class="hiding-path">/cache/recovery</span><span class="hiding-tag">Recovery</span></div>
+          <div class="hiding-item"><span class="hiding-path">/data/local/tmp</span><span class="hiding-tag">Tmp</span></div>
+          <div class="hiding-item"><span class="hiding-path">/data/adb/mountzero</span><span class="hiding-tag">MountZero</span></div>
+        </div>
+      </div>
+      <div class="hiding-list-section">
+        <div class="hiding-list-title">
+          <svg viewBox="0 0 20 20" fill="none" width="14" height="14"><rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/></svg>
+          <span>Maps (Injections) Hidden by Default</span>
+        </div>
+        <div class="hiding-list" id="default-maps-list">
+          <div class="hiding-item"><span class="hiding-path">/data/adb/modules/rezygisk/zygisk</span><span class="hiding-tag">Rezygisk</span></div>
+          <div class="hiding-item"><span class="hiding-path">/data/adb/modules/rezygisk/lib64/libzygisk.so</span><span class="hiding-tag">Rezygisk</span></div>
+          <div class="hiding-item"><span class="hiding-path">/data/adb/modules/rezygisk/lib/libzygisk.so</span><span class="hiding-tag">Rezygisk</span></div>
+          <div class="hiding-item"><span class="hiding-path">/data/adb/modules/zygisk_lsposed/zygisk</span><span class="hiding-tag">LSPosed</span></div>
+          <div class="hiding-item"><span class="hiding-path">/data/adb/modules/zygisk-detach/zygisk</span><span class="hiding-tag">Detach</span></div>
+          <div class="hiding-item"><span class="hiding-path">/system/apex/com.android.art/bin/dex2oat</span><span class="hiding-tag">LSPosed</span></div>
+          <div class="hiding-item"><span class="hiding-path">/apex/com.android.art/bin/dex2oat</span><span class="hiding-tag">LSPosed</span></div>
+        </div>
+      </div>
+      <div class="hiding-list-section">
+        <div class="hiding-list-title">
+          <svg viewBox="0 0 20 20" fill="none" width="14" height="14"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M10 6v4l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          <span>Properties Spoofed by Default</span>
+        </div>
+        <div class="hiding-list" id="default-props-list">
+          <div class="hiding-item"><span class="hiding-path">ro.adb.secure = 1</span><span class="hiding-tag">ADB</span></div>
+          <div class="hiding-item"><span class="hiding-path">ro.debuggable = 0</span><span class="hiding-tag">Security</span></div>
+          <div class="hiding-item"><span class="hiding-path">ro.secure = 1</span><span class="hiding-tag">Security</span></div>
+          <div class="hiding-item"><span class="hiding-path">ro.build.type = user</span><span class="hiding-tag">Build</span></div>
+          <div class="hiding-item"><span class="hiding-path">ro.build.tags = release-keys</span><span class="hiding-tag">Build</span></div>
+          <div class="hiding-item"><span class="hiding-path">ro.boot.flash.locked = 1</span><span class="hiding-tag">Bootloader</span></div>
+          <div class="hiding-item"><span class="hiding-path">ro.boot.verifiedbootstate = green</span><span class="hiding-tag">Verified Boot</span></div>
+          <div class="hiding-item"><span class="hiding-path">ro.boot.vbmeta.device_state = locked</span><span class="hiding-tag">Verified Boot</span></div>
+          <div class="hiding-item"><span class="hiding-path">ro.build.fingerprint (userdebug→user)</span><span class="hiding-tag">Fingerprint</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Custom Rules Editors -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon blue">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M11 3H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-6M14.5 3.5l2 2L9 13l-3 1 1-3 7.5-7.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h2>Custom Path Rules</h2>
+      </div>
+      <div class="form-stack">
+        <div class="input-group">
+          <label class="input-label">Additional Paths to Hide (one per line)</label>
+          <textarea id="cfg-custom-paths" class="neon-input neon-textarea" rows="4" placeholder="/data/adb/my_custom_path&#10;/data/local/tmp/myfile"></textarea>
+        </div>
+        <button id="btn-save-custom-paths" class="btn btn-primary full-width">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M5 4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1V8l-4-4H5zm4 9v-4m-2 2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Save Path Rules
+        </button>
+      </div>
+    </div>
+
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon blue">
+          <svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M7 10h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <h2>Custom Map Rules</h2>
+      </div>
+      <div class="form-stack">
+        <div class="input-group">
+          <label class="input-label">Additional Maps to Hide (one per line)</label>
+          <textarea id="cfg-custom-maps" class="neon-input neon-textarea" rows="4" placeholder="/data/adb/modules/my_module/zygisk.so&#10;/data/adb/modules/another/lib.so"></textarea>
+        </div>
+        <button id="btn-save-custom-maps" class="btn btn-primary full-width">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M5 4a1 1 0 00-1 1v10a1 1 0 001 1h10a1 1 0 001-1V8l-4-4H5zm4 9v-4m-2 2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Save Map Rules
+        </button>
+      </div>
+    </div>
+
+    <!-- Hiding Logs -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon purple">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M4 4h12v12H4z" stroke="currentColor" stroke-width="1.5"/><path d="M4 8h12M8 4v12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <h2>Hiding Logs</h2>
+      </div>
+      <pre id="hiding-logs-output" class="terminal-output" style="max-height:200px;font-size:0.7rem;">Loading...</pre>
+      <button id="btn-refresh-logs" class="btn btn-secondary full-width" style="margin-top:8px">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M4 4v5h5M16 16v-5h-5M4 9A7 7 0 0114.9 6M16 11a7 7 0 01-10.9 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Refresh Logs
+      </button>
+    </div>
+
+  </section>
+
+  <!-- ==================== TOOLS TAB ==================== -->
+  <section id="tab-tools" class="tab-content">
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon cyan">
+          <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/><path d="M10 6v4l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <h2>Diagnostics</h2>
+      </div>
+      <div class="action-row">
+        <button id="btn-detect" class="btn btn-primary" style="flex:1">
+          <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="8" stroke="currentColor" stroke-width="1.5"/><path d="M10 6v4l3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Detect Capabilities
+        </button>
+        <button id="btn-dump" class="btn btn-secondary" style="flex:1">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M9 3H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M13 3h4v4M13 3l4 4-6 6-4-4 6-6z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Diagnostic Dump
+        </button>
+      </div>
+      <pre id="detect-output" class="terminal-output"></pre>
+    </div>
+
+    <!-- BBR Toggle -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon purple">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h2>BBR Congestion Control</h2>
+      </div>
+      <div class="info-card" style="margin-bottom:12px">
+        <div class="info-row"><span class="info-label">Current Algorithm:</span><span id="bbr-current-algo" class="info-value">--</span></div>
+        <div class="info-row"><span class="info-label">BBR Status:</span><span id="bbr-status-text" class="info-value">Loading...</span></div>
+      </div>
+      <label class="toggle-row" id="bbr-toggle-row">
+        <span class="toggle-label">Enable BBR at boot</span>
+        <div class="toggle-switch">
+          <input type="checkbox" id="bbr-toggle">
+          <span class="toggle-thumb"></span>
+        </div>
+      </label>
+    </div>
+
+    <!-- MemGuard Toggle -->
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon green">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="1.5"/></svg>
+        </div>
+        <h2>MemGuard Memory Protection</h2>
+        <div class="card-badge" id="memguard-status-pill">--</div>
+      </div>
+      <div class="info-card" style="margin-bottom:12px">
+        <div class="info-row"><span class="info-label">Status:</span><span id="memguard-status-text" class="info-value">Loading...</span></div>
+      </div>
+      <label class="toggle-row" id="memguard-toggle-row">
+        <span class="toggle-label">Enable MemGuard</span>
+        <div class="toggle-switch">
+          <input type="checkbox" id="memguard-toggle">
+          <span class="toggle-thumb"></span>
+        </div>
+      </label>
+    </div>
+
+    <div class="glass-card">
+      <div class="card-header">
+        <div class="card-header-icon purple">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M11 3H5a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-6M14.5 3.5l2 2L9 13l-3 1 1-3 7.5-7.5z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h2>Module Operations</h2>
+      </div>
+      <div class="form-stack">
+        <div class="input-group">
+          <label class="input-label">Module ID</label>
+          <input type="text" id="tool-mod-id" class="neon-input" placeholder="my_module_id">
+        </div>
+        <div class="input-group">
+          <label class="input-label">Module Path</label>
+          <input type="text" id="tool-mod-path" class="neon-input" placeholder="/data/adb/modules/X">
+        </div>
+        <label class="toggle-row">
+          <span class="toggle-label">Custom install</span>
+          <div class="toggle-switch">
+            <input type="checkbox" id="tool-mod-custom">
+            <span class="toggle-thumb"></span>
+          </div>
+        </label>
+        <button id="btn-install-module" class="btn btn-success full-width">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M10 3v10M5 13l5 5 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Install Module
+        </button>
+        <button id="btn-scan-modules" class="btn btn-primary full-width">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M4 4v5h5M16 16v-5h-5M4 9A7 7 0 0114.9 6M16 11a7 7 0 01-10.9 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Scan All Modules
+        </button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Toast notification -->
+<div id="toast-container"></div>
+
+<!-- Footer -->
+<footer>
+  <span class="footer-text">MountZero VFS v2.0.3</span>
+  <span class="footer-dot"></span>
+  <span class="footer-author">&copy; 爪卂丂ㄒ乇尺爪工刀ᗪ</span>
+</footer>
+
+<script src="assets/kernelsu.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

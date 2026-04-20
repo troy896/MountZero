@@ -1,0 +1,12 @@
+# MountZero VFS - Custom SUSFS Maps to Hide from /proc/PID/maps
+# One path per line, lines starting with # are comments
+
+# Zygisk injection libraries
+/data/adb/modules/rezygisk/zygisk
+/data/adb/modules/rezygisk/lib64/libzygisk.so
+/data/adb/modules/rezygisk/lib/libzygisk.so
+/data/adb/modules/zygisk_lsposed
+/data/adb/modules/zygisk-detach/zygisk
+
+# Custom module libraries
+/data/adb/modules/*/zygisk/*.so

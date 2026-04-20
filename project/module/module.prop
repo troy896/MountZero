@@ -1,0 +1,7 @@
+id=mountzero_vfs
+name=MountZero VFS
+version=v2.0.3
+versionCode=202
+author=爪卂丂ㄒ乇尺爪工刀ᗪ丂
+description=MountZero VFS path redirection manager with hot-plug module support. Built-in for KernelSU/ReSukiSU.
+metamodule=1
