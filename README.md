@@ -149,4 +149,4 @@ v2.0.3
 
 ## Support
 
-Telegram: @mountzerozvfs
+Telegram: [@mountzerozvfs](https://t.me/mountzerozvfs)
